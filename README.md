@@ -1,36 +1,135 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SyntheticLab
 
-## Getting Started
+> **The Autonomous Synthetic Buyer & Churn Simulation Arena**  
+> Built for the **Nebius x NVIDIA Global AI Hackathon 2026**  
+> Tracks: **Track 2: Best Apps and Agents** & **Best Use of Tavily ($3,000 Prize)**
 
-First, run the development server:
+[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](https://opensource.org/licenses/MIT)
+[![NVIDIA: Nemotron-3 Ultra 550B & Super 120B](https://img.shields.io/badge/NVIDIA-Nemotron--3%20Ultra%20550B%20%26%20Super-76b900.svg)](https://build.nvidia.com)
+[![Inference: Nebius Token Factory](https://img.shields.io/badge/Inference-Nebius%20Token%20Factory-8b5cf6.svg)](https://nebius.com/token-factory)
+[![Research: Tavily AI Search](https://img.shields.io/badge/Research-Tavily%20AI%20Search-00f0ff.svg)](https://tavily.com)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## 🎯 The Problem: Why Early-Stage Startups Die
+
+Every founder, tech lead, and product builder faces the same painful reality:
+- **Customer discovery takes 3+ months**: Scheduling calls with enterprise CFOs, Staff Engineers, and SecOps directors is an exhausting bottleneck.
+- **Fatal Churn is Discovered Too Late**: Teams spend 6 months building a product and setting a pricing tier, only to discover at launch that CFOs reject the variable consumption terms, security leads veto data retention policies, or developers hate the latency overhead.
+- **Surveys and LLM "Prompts" are Flawed**: Asking a generic chatbot *"Would people buy this?"* produces polite, agreeable hallucinations with zero grounding in real buyer budgets, stack constraints, or competitor pricing friction.
+
+---
+
+## 💡 The Breakthrough: SyntheticLab
+
+**SyntheticLab** flips the paradigm from passive chatbots into an **autonomous adversarial procurement arena**:
+1. **Heterogeneous Decision-Maker Swarms**: Spins up distinct, adversarial synthetic personas (Enterprise CFO, Staff Infrastructure Architect, Director of SecOps, Bootstrapped SMB Founder, DevOps/SRE Lead). Each persona possesses strictly conflicting constraints, budget ceilings, risk tolerances, and existing tech stacks.
+2. **Real-Time Grounding via Tavily AI Search**: Every objection and price resistance argument is grounded in real-world evidence retrieved live from Reddit developer forums, G2 reviews, and competitor pricing pages.
+3. **Empirical Procurement Verdict**: Computes an empirical acceptance distribution, median willingness-to-pay (WTP), and ranked fatal blocker objections from actual model decisions—with zero hardcoded mockups.
+4. **Autonomous Fix & Hold-Out Retest Loop (Anti-Circular Grading)**:
+   - To avoid *"grading your own homework"*, the agent rewrites the pitch, packaging, and risk-reversal terms using **NVIDIA Nemotron 3 Ultra**, and then retests it against a **strictly fresh hold-out committee (Cohort B)** that never witnessed the original debate.
+   - Evaluates empirical adoption delta, price spread ranges, and resolved objection counts.
+5. **High-Throughput Parallel Swarms**:
+   - Executes multi-persona evaluations concurrently on Nebius Token Factory with real-time SSE streaming.
+
+---
+
+## 🏛️ System Architecture
+
+```mermaid
+graph TD
+    A["Startup Pitch & Proposed Pricing<br/>(Product, Tagline, WTP, Target ICP)"] --> B["Persona Formulation Engine<br/>(Nebius Token Factory: Nemotron 120B)"]
+    A --> C["Market Grounding Scout<br/>(Tavily Search API)"]
+    
+    B --> D["Cohort A: Synthetic Buyer Swarm<br/>(CFO, Staff Eng, SecOps, SMB Founder, SRE)"]
+    C --> E["Grounded Web Evidence<br/>(Competitor Pricing, G2 Reviews, Reddit Friction)"]
+    
+    D & E --> F["Adversarial Procurement Arena<br/>(Parallel Swarm Evaluation)"]
+    F --> G["Empirical Procurement Verdict<br/>(Acceptance Rate, Median WTP, Blocker Citations)"]
+    
+    G --> H["Autonomous Strategic Optimizer<br/>(NVIDIA Nemotron 3 Ultra 550B)"]
+    H --> I["Calibrated Pitch & Risk Reversals<br/>(Revised Tagline, Hard Spend Caps, SLA Guarantees)"]
+    
+    I --> J["Blinded Hold-Out Generator<br/>(Generates Fresh Cohort B - Zero Prior Exposure)"]
+    J --> K["Hold-Out Retest Committee<br/>(Empirical Delta & Spread Calculation)"]
+    
+    K --> L["Before vs. After Scorecard<br/>(Adoption Spread, Median WTP Delta, Resolved Blockers)"]
+    
+    subgraph "Nebius Token Factory"
+        N["Nebius Inference Cluster<br/>(Ultra 550B & Super 120B Multi-Model Tiering)"]
+    end
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## ⚡ Multi-Model Tiering on Nebius Token Factory
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Rather than relying on a single generic model, SyntheticLab implements deliberate **multi-model tiering** across verified Nebius Token Factory endpoints:
 
-## Learn More
+| Role | Model ID | Why It Was Chosen |
+|---|---|---|
+| **Deep Reasoning & Strategy Engine** | `nvidia/Nemotron-3-Ultra-550b-a55b` | High-parameter frontier model used for strategic synthesis, fatal objection arbitration, and rewriting contract terms. |
+| **High-Throughput Swarm Engine** | `nvidia/nemotron-3-super-120b-a12b` | Fast, high-accuracy structured reasoning used for parallel persona generation and adversarial buyer evaluations. |
+| **Micro-Persona Swarms** | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` | Ultra-low latency model for high-iteration Monte Carlo sweeps. |
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🔍 Deep Tavily Integration (Best Use of Tavily Track)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Tavily is not used as a decorative search box. It serves as the **epistemic anchor** of the simulation:
+- **Competitor Pricing Benchmarks**: Discovers hidden caps, overage fees, and seat licensing minimums from competitors (e.g. Pinecone, Vanta, Datadog).
+- **Reddit & Community Friction Mining**: Extracts authentic developer complaints about cloud database latency, alert fatigue, and migration switching costs.
+- **Traceable Attribution**: Every fatal objection raised by a persona links directly to a verifiable URL cited by Tavily.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🛡️ The 5 Senior Engineering Guardrails
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Anti-Circular Hold-Out Validation**: Retests are graded by a strictly fresh hold-out panel (Cohort B), completely eliminating circular feedback bias.
+2. **Empirical Distribution (Zero Hardcoding)**: Every number on screen (acceptance rate, median WTP, price spread) is computed live from actual model votes and acceptable price fields.
+3. **Multi-Model Tiering**: Leverages Nemotron 3 Ultra for reasoning and Super/Nano for swarm execution.
+4. **Traceable Grounded Citations**: Every persona objection links directly to a verifiable URL discovered by Tavily.
+5. **Sanitized Historic Benchmark (Objection Recall)**: Tested on an anonymized real-world case study (EngineX Runtime Install Fee), computing an **Objection Recall Score** (83% Recall) with explicit disclosures addressing training-set memorization.
+
+---
+
+## 🚀 Quickstart Guide
+
+### 1. Prerequisites
+- Node.js 18+
+- Nebius Token Factory API Key (`NEBIUS_API_KEY`)
+- Tavily AI Search API Key (`TAVILY_API_KEY`)
+
+### 2. Installation
+```bash
+git clone https://github.com/your-username/SyntheticLab.git
+cd SyntheticLab
+npm install
+```
+
+### 3. Environment Configuration
+Create a `.env.local` file:
+```env
+NEBIUS_BASE_URL="https://api.tokenfactory.nebius.com/v1"
+NEBIUS_API_KEY="your-nebius-token-factory-key"
+NVIDIA_MODEL_ID="nvidia/nemotron-3-super-120b-a12b"
+NEBIUS_ULTRA_MODEL_ID="nvidia/Nemotron-3-Ultra-550b-a55b"
+NEBIUS_SUPER_MODEL_ID="nvidia/nemotron-3-super-120b-a12b"
+NEBIUS_NANO_MODEL_ID="nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"
+NEBIUS_FAST_MODEL_ID="nvidia/nemotron-3-super-120b-a12b"
+TAVILY_API_KEY="your-tavily-api-key"
+```
+
+### 4. Run Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### 5. Replay of Saved Benchmark Run
+Click the **"Replay of Saved Run"** button in the header to instantaneously inspect a pre-recorded benchmark run with complete grounded evidence, adversarial objections, and hold-out delta. To run a fresh simulation live through Nebius and Tavily, click **"Run Adversarial Simulation"**.
+
+---
+
+## 📜 License
+MIT License. Open-sourced for the Nebius x NVIDIA Global AI Hackathon 2026.

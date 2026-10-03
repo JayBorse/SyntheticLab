@@ -1,0 +1,562 @@
+import {
+  SimulationInput,
+  GroundedEvidence,
+  SyntheticPersona,
+  PersonaEvaluation,
+  SimulationVerdict,
+  OptimizedPitch,
+  HoldOutRetestResult,
+} from './types';
+
+export interface SimulationPreset {
+  id: string;
+  name: string;
+  badge: string;
+  description: string;
+  input: SimulationInput;
+  cachedEvidence: GroundedEvidence[];
+  groundTruthObjections?: string[]; // Documented real-world public objections for Blind Replays
+  savedRun?: {
+    personas: SyntheticPersona[];
+    evaluations: PersonaEvaluation[];
+    verdict: SimulationVerdict;
+    optimizedPitch?: OptimizedPitch;
+    holdOutResult?: HoldOutRetestResult;
+  };
+}
+
+export const SIMULATION_PRESETS: SimulationPreset[] = [
+  {
+    id: 'devtools_api',
+    name: 'VectorStream AI (Infra / DevTools)',
+    badge: 'NVIDIA / Nebius Infra',
+    description: 'High-concurrency serverless vector search & embedding API for AI agents.',
+    input: {
+      productName: 'VectorStream AI',
+      tagline: 'Sub-10ms Serverless Vector Search for Autonomous Agents',
+      description:
+        'Zero-cold-start, high-throughput vector retrieval engine optimized for agent memory pipelines. Billed strictly per 1,000 queries with guaranteed 99.99% uptime and zero infrastructure management.',
+      proposedPrice: 40,
+      billingPeriod: 'month',
+      targetAudience: 'Backend AI engineers, agent developers, and tech leads managing RAG workloads',
+      category: 'devtools_api',
+    },
+    cachedEvidence: [
+      {
+        id: 'ev_pinecone_pricing',
+        sourceType: 'competitor_pricing',
+        title: 'Pinecone Serverless Pricing & Usage Caps',
+        snippet:
+          'Pinecone charges $0.33/million read units plus index storage. Small teams complain about unexpected cost spikes when autonomous agent loops query memory 50+ times per conversation turn.',
+        url: 'https://pinecone.io/pricing',
+        domain: 'pinecone.io',
+        relevanceToPitch: 'Price comparison benchmark against incumbent vector databases.',
+      },
+      {
+        id: 'ev_qdrant_reddit',
+        sourceType: 'reddit_complaint',
+        title: 'Reddit r/vectordatabase: Serverless vector database costs and rate reviews',
+        snippet:
+          'Developers report that cloud vector databases introduce severe pricing surprises: "Pinecone 0/10 - Their serverless pricing is brutal. I was paying $50-100/month just for vector search."',
+        url: 'https://www.reddit.com/r/vectordatabase/comments/1l7rods/rate_databases',
+        domain: 'reddit.com',
+        relevanceToPitch: 'Validates target buyer frustration with variable pricing and unexpected spikes.',
+      },
+      {
+        id: 'ev_chroma_g2',
+        sourceType: 'g2_review',
+        title: 'Reddit r/vectordatabase: Benchmark pgvector vs Pinecone vs Qdrant',
+        snippet:
+          'Benchmark discussions highlight that self-hosting Qdrant or Chroma on Kubernetes is cheap initially, but team maintenance overhead, index rebalancing, and cluster upgrades quickly cost $4,000+/mo in engineering time.',
+        url: 'https://www.reddit.com/r/vectordatabase/comments/1sfv5x1/benchmark_pgvector_vs_pinecone_vs_qdrant_vs',
+        domain: 'reddit.com',
+        relevanceToPitch: 'Supports the value proposition of managed serverless infrastructure.',
+      },
+    ],
+    savedRun: {
+      personas: [
+        {
+          id: 'persona_init_0',
+          name: 'Sarah Chen',
+          role: 'enterprise_cfo',
+          title: 'VP of Finance & Operations',
+          companyProfile: 'Series B AI Agent Platform (85 engineers, $12M ARR)',
+          budgetCeiling: 250,
+          budgetPeriod: 'month',
+          riskTolerance: 'low',
+          primaryConstraint: 'Uncapped variable query billing creates uncontrollable financial risk',
+          existingStack: ['AWS Bedrock', 'Pinecone', 'Snowflake'],
+          evaluationCriteria: ['Hard spend limits', 'Contract predictability', 'Audit compliance'],
+        },
+        {
+          id: 'persona_init_1',
+          name: 'Alex Mercer',
+          role: 'staff_engineer',
+          title: 'Staff AI Infrastructure Architect',
+          companyProfile: 'Enterprise RAG Middleware Provider',
+          budgetCeiling: 800,
+          budgetPeriod: 'month',
+          riskTolerance: 'medium',
+          primaryConstraint: 'Network roundtrip latency must be sub-15ms at 99th percentile',
+          existingStack: ['Self-hosted Qdrant on K8s', 'Kubeflow', 'PyTorch'],
+          evaluationCriteria: ['p99 Latency SLA', 'Python / Rust SDK parity', 'Zero cold-start guarantees'],
+        },
+        {
+          id: 'persona_init_2',
+          name: 'Liam Patel',
+          role: 'smb_founder',
+          title: 'Founder & Solo Developer',
+          companyProfile: 'Customer Support Agent Copilot (Bootstrapped, 2,000 MAU)',
+          budgetCeiling: 60,
+          budgetPeriod: 'month',
+          riskTolerance: 'high',
+          primaryConstraint: 'Must have zero idle baseline fee when agent traffic fluctuates',
+          existingStack: ['Supabase pgvector', 'Vercel', 'Next.js'],
+          evaluationCriteria: ['Generous free tier', 'No credit card to prototype', 'Instant serverless setup'],
+        },
+        {
+          id: 'persona_init_3',
+          name: 'Elena Rostova',
+          role: 'security_lead',
+          title: 'Director of SecOps & Data Governance',
+          companyProfile: 'Healthcare Workflow Automation',
+          budgetCeiling: 1200,
+          budgetPeriod: 'month',
+          riskTolerance: 'low',
+          primaryConstraint: 'Zero data retention guarantee for raw embedding text queries',
+          existingStack: ['AWS GovCloud', 'Okta', 'CrowdStrike'],
+          evaluationCriteria: ['SOC-2 Type II report', 'Private VPC peering', 'Zero data retention SLA'],
+        },
+        {
+          id: 'persona_init_4',
+          name: 'Marcus Vance',
+          role: 'devops_lead',
+          title: 'DevOps & Site Reliability Lead',
+          companyProfile: 'Fintech Agent Orchestrator',
+          budgetCeiling: 400,
+          budgetPeriod: 'month',
+          riskTolerance: 'medium',
+          primaryConstraint: 'Requires guaranteed 99.99% uptime with automated multi-region failover',
+          existingStack: ['Datadog', 'Terraform', 'GCP Kubernetes Engine'],
+          evaluationCriteria: ['Terraform provider', 'Automated failover', 'Prometheus telemetry endpoints'],
+        },
+      ],
+      evaluations: [
+        {
+          personaId: 'persona_init_0',
+          personaName: 'Sarah Chen',
+          role: 'enterprise_cfo',
+          vote: 'reject',
+          acceptablePrice: 25,
+          acceptablePeriod: 'month',
+          fatalObjections: [
+            {
+              objection: 'Uncapped variable query billing creates runaway budget risk if autonomous agent enters query loop',
+              severity: 'blocker',
+              groundedEvidenceUrl: 'https://pinecone.io/pricing',
+              evidenceSnippet: 'Small teams complain about unexpected cost spikes when autonomous agent loops query memory 50+ times per conversation turn.',
+            },
+          ],
+          dealMakers: ['Hard budget capping with automatic circuit breaker', 'Predictable flat monthly commitment'],
+          rationale: 'I cannot sign off on an open-ended consumption model where a single developer bug can run up a $5,000 cloud bill over the weekend.',
+        },
+        {
+          personaId: 'persona_init_1',
+          personaName: 'Alex Mercer',
+          role: 'staff_engineer',
+          vote: 'hesitant',
+          acceptablePrice: 35,
+          acceptablePeriod: 'month',
+          fatalObjections: [
+            {
+              objection: 'Cloud vector service latency overhead during multi-step reasoning hops',
+              severity: 'concern',
+              groundedEvidenceUrl: 'https://www.reddit.com/r/vectordatabase/comments/1l7rods/rate_databases',
+              evidenceSnippet: 'Developers report that cloud vector databases introduce severe pricing surprises: "Pinecone 0/10 - Their serverless pricing is brutal."',
+            },
+          ],
+          dealMakers: ['Sub-10ms p99 SLA guaranteed in writing with penalty credits', 'Local edge caching sidecar'],
+          rationale: 'The value proposition sounds promising, but without contractual latency SLAs, our agent chains will feel sluggish compared to local Qdrant memory.',
+        },
+        {
+          personaId: 'persona_init_2',
+          personaName: 'Liam Patel',
+          role: 'smb_founder',
+          vote: 'adopt',
+          acceptablePrice: 40,
+          acceptablePeriod: 'month',
+          fatalObjections: [],
+          dealMakers: ['Zero infrastructure maintenance', 'Instant API key generation'],
+          rationale: 'Managing Postgres pgvector indexes at 2 AM is draining my time. Paying $40/mo to have zero cold starts and never touch a cluster is an immediate win for me.',
+        },
+        {
+          personaId: 'persona_init_3',
+          personaName: 'Elena Rostova',
+          role: 'security_lead',
+          vote: 'reject',
+          acceptablePrice: 30,
+          acceptablePeriod: 'month',
+          fatalObjections: [
+            {
+              objection: 'Absence of explicit Zero Data Retention agreement for raw vectorized customer prompts',
+              severity: 'blocker',
+              groundedEvidenceUrl: 'https://www.reddit.com/r/vectordatabase/comments/1sfv5x1/benchmark_pgvector_vs_pinecone_vs_qdrant_vs',
+              evidenceSnippet: 'Self-hosting is preferred when compliance teams demand strict air-gapped data retention boundaries.',
+            },
+          ],
+          dealMakers: ['BAA agreement for HIPAA/SOC-2', 'Customer-managed encryption keys (CMEK)'],
+          rationale: 'We handle patient record queries. Without signed Zero Data Retention and SOC-2 documentation, procurement will veto this in 5 minutes.',
+        },
+        {
+          personaId: 'persona_init_4',
+          personaName: 'Marcus Vance',
+          role: 'devops_lead',
+          vote: 'hesitant',
+          acceptablePrice: 35,
+          acceptablePeriod: 'month',
+          fatalObjections: [
+            {
+              objection: 'Missing Terraform provider and Prometheus telemetry metrics for automated SRE observability',
+              severity: 'concern',
+            },
+          ],
+          dealMakers: ['Official Terraform registry module', '99.99% multi-region uptime guarantee'],
+          rationale: 'We manage everything via GitOps. If we cannot provision VectorStream via Terraform and monitor it in Datadog, it is a non-starter.',
+        },
+      ],
+      verdict: {
+        totalPersonas: 5,
+        adoptCount: 1,
+        rejectCount: 2,
+        hesitantCount: 2,
+        acceptanceRate: 0.2,
+        priceRange: { min: 25, median: 35, max: 40, currency: 'USD', period: 'month' },
+        topObjections: [
+          {
+            objection: 'Uncapped variable query billing creates runaway budget risk if autonomous agent enters query loop',
+            frequency: 2,
+            severity: 'blocker',
+            citedSources: ['https://pinecone.io/pricing'],
+          },
+          {
+            objection: 'Cloud vector service latency overhead during multi-step reasoning hops',
+            frequency: 2,
+            severity: 'concern',
+            citedSources: ['https://www.reddit.com/r/vectordatabase/comments/1l7rods/rate_databases'],
+          },
+          {
+            objection: 'Absence of explicit Zero Data Retention agreement for raw vectorized customer prompts',
+            frequency: 1,
+            severity: 'blocker',
+            citedSources: ['https://www.reddit.com/r/vectordatabase/comments/1sfv5x1/benchmark_pgvector_vs_pinecone_vs_qdrant_vs'],
+          },
+        ],
+        suggestedActionItems: [
+          'Adjust baseline packaging: Target median willingness-to-pay threshold of $35/month.',
+          'Directly address top friction: Introduce hard budget spend ceilings and circuit-breakers.',
+          'Provide SOC-2 Type II and Zero Data Retention security compliance packet.',
+        ],
+      },
+      optimizedPitch: {
+        originalInput: {
+          productName: 'VectorStream AI',
+          tagline: 'Sub-10ms Serverless Vector Search for Autonomous Agents',
+          description:
+            'Zero-cold-start, high-throughput vector retrieval engine optimized for agent memory pipelines. Billed strictly per 1,000 queries with guaranteed 99.99% uptime and zero infrastructure management.',
+          proposedPrice: 40,
+          billingPeriod: 'month',
+          targetAudience: 'Backend AI engineers, agent developers, and tech leads managing RAG workloads',
+          category: 'devtools_api',
+        },
+        revisedTagline: 'Capped-Spend, Sub-10ms Serverless Vector Search with Zero Data Retention',
+        revisedDescription:
+          'Sub-10ms serverless vector engine for AI agents featuring automatic circuit-breakers (guaranteed spend caps), SOC-2 Type II Zero Data Retention, official Terraform modules, and written 99.99% uptime SLA.',
+        calibratedPrice: 35,
+        calibratedPeriod: 'month',
+        packagingFix:
+          'Introduced a flat $35/month Developer Tier with hard spend caps (no surprise overages), free assisted migration, and enterprise HIPAA/SOC-2 zero-retention guarantee.',
+        objectionCountermeasures: [
+          {
+            targetObjection: 'Uncapped variable query billing creates runaway budget risk',
+            countermeasure:
+              'Introduced hard monthly budget ceilings with configurable auto-pause webhooks to guarantee zero surprise bills.',
+            evidenceAddressedUrl: 'https://pinecone.io/pricing',
+          },
+          {
+            targetObjection: 'Cloud vector service latency overhead during multi-step reasoning hops',
+            countermeasure:
+              'Backed by written p99 sub-10ms SLA across all European and US Nebius data centers with automatic latency violation credits.',
+            evidenceAddressedUrl: 'https://www.reddit.com/r/vectordatabase/comments/1l7rods/rate_databases',
+          },
+          {
+            targetObjection: 'Absence of explicit Zero Data Retention agreement',
+            countermeasure:
+              'Pre-signed Zero Data Retention DPA and downloadable SOC-2 Type II audit packet included in baseline tier.',
+            evidenceAddressedUrl: 'https://www.reddit.com/r/vectordatabase/comments/1sfv5x1/benchmark_pgvector_vs_pinecone_vs_qdrant_vs',
+          },
+        ],
+        strategicRationale:
+          'By reducing price to the empirical committee median ($35/mo) and dispelling the top 3 blocker objections (spend runaway, latency, data privacy), the pitch transitions from high-risk infrastructure to an approved low-friction utility.',
+      },
+      holdOutResult: {
+        holdOutPersonas: [
+          {
+            id: 'holdout_0',
+            name: 'David Zhao',
+            role: 'enterprise_cfo',
+            title: 'Chief Financial Officer',
+            companyProfile: 'Fintech Copilot Startup ($8M ARR)',
+            budgetCeiling: 300,
+            budgetPeriod: 'month',
+            riskTolerance: 'low',
+            primaryConstraint: 'Predictable spend without variable exposure',
+            existingStack: ['AWS', 'Stripe'],
+            evaluationCriteria: ['Hard spend cap', 'Zero financial surprises'],
+            isHoldOut: true,
+          },
+          {
+            id: 'holdout_1',
+            name: 'Rachel Sterling',
+            role: 'staff_engineer',
+            title: 'Staff ML Platform Engineer',
+            companyProfile: 'Autonomous Agent Platform',
+            budgetCeiling: 600,
+            budgetPeriod: 'month',
+            riskTolerance: 'medium',
+            primaryConstraint: 'Requires p99 latency guarantees under high load',
+            existingStack: ['Qdrant', 'FastAPI'],
+            evaluationCriteria: ['p99 SLA', 'SDK developer ergonomics'],
+            isHoldOut: true,
+          },
+          {
+            id: 'holdout_2',
+            name: 'Tariq Al-Mansoor',
+            role: 'security_lead',
+            title: 'Head of Cyber Governance',
+            companyProfile: 'InsurTech AI Pipeline',
+            budgetCeiling: 1500,
+            budgetPeriod: 'month',
+            riskTolerance: 'low',
+            primaryConstraint: 'Strict Zero Data Retention requirements',
+            existingStack: ['GCP Cloud KMS', 'Okta'],
+            evaluationCriteria: ['Zero data retention DPA', 'SOC-2'],
+            isHoldOut: true,
+          },
+          {
+            id: 'holdout_3',
+            name: 'Chloe Simmons',
+            role: 'smb_founder',
+            title: 'Co-Founder & CTO',
+            companyProfile: 'Developer Productivity Bot (Seed)',
+            budgetCeiling: 80,
+            budgetPeriod: 'month',
+            riskTolerance: 'high',
+            primaryConstraint: 'Low setup cost and fast time to production',
+            existingStack: ['Supabase', 'Next.js'],
+            evaluationCriteria: ['Fast onboarding', 'Transparent pricing'],
+            isHoldOut: true,
+          },
+          {
+            id: 'holdout_4',
+            name: 'Oliver Lindqvist',
+            role: 'devops_lead',
+            title: 'Lead SRE & Platform Operations',
+            companyProfile: 'Enterprise Workflow Engine',
+            budgetCeiling: 500,
+            budgetPeriod: 'month',
+            riskTolerance: 'medium',
+            primaryConstraint: 'GitOps and Terraform provisioning',
+            existingStack: ['Terraform', 'Datadog', 'Kubernetes'],
+            evaluationCriteria: ['Terraform provider', 'Telemetry APIs'],
+            isHoldOut: true,
+          },
+        ],
+        holdOutEvaluations: [
+          {
+            personaId: 'holdout_0',
+            personaName: 'David Zhao',
+            role: 'enterprise_cfo',
+            vote: 'adopt',
+            acceptablePrice: 35,
+            acceptablePeriod: 'month',
+            fatalObjections: [],
+            dealMakers: ['Enforced spend caps', 'Zero billing surprises'],
+            rationale: 'The hard spend circuit breaker eliminates our budget runaway concern. $35/mo fits cleanly within discretionary tooling approval.',
+          },
+          {
+            personaId: 'holdout_1',
+            personaName: 'Rachel Sterling',
+            role: 'staff_engineer',
+            vote: 'adopt',
+            acceptablePrice: 45,
+            acceptablePeriod: 'month',
+            fatalObjections: [],
+            dealMakers: ['Written p99 SLA with penalty credits'],
+            rationale: 'With an explicit written latency SLA and penalty credits, this meets our engineering reliability bar.',
+          },
+          {
+            personaId: 'holdout_2',
+            personaName: 'Tariq Al-Mansoor',
+            role: 'security_lead',
+            vote: 'adopt',
+            acceptablePrice: 50,
+            acceptablePeriod: 'month',
+            fatalObjections: [],
+            dealMakers: ['Signed Zero Data Retention DPA'],
+            rationale: 'Pre-packaged SOC-2 Type II and signed zero-retention DPA satisfies our governance checklist without requiring a 6-month security review.',
+          },
+          {
+            personaId: 'holdout_3',
+            personaName: 'Chloe Simmons',
+            role: 'smb_founder',
+            vote: 'adopt',
+            acceptablePrice: 35,
+            acceptablePeriod: 'month',
+            fatalObjections: [],
+            dealMakers: ['Turnkey setup'],
+            rationale: '$35/month with zero maintenance overhead is a no-brainer for our seed-stage infrastructure.',
+          },
+          {
+            personaId: 'holdout_4',
+            personaName: 'Oliver Lindqvist',
+            role: 'devops_lead',
+            vote: 'hesitant',
+            acceptablePrice: 35,
+            acceptablePeriod: 'month',
+            fatalObjections: [
+              {
+                objection: 'Need documentation preview of Terraform module syntax before production deployment',
+                severity: 'concern',
+              },
+            ],
+            dealMakers: ['Terraform registry module'],
+            rationale: 'The Terraform support addresses our main barrier; I will approve once our SRE team validates the module syntax in staging.',
+          },
+        ],
+        holdOutVerdict: {
+          totalPersonas: 5,
+          adoptCount: 4,
+          rejectCount: 0,
+          hesitantCount: 1,
+          acceptanceRate: 0.8,
+          priceRange: { min: 35, median: 35, max: 50, currency: 'USD', period: 'month' },
+          topObjections: [
+            {
+              objection: 'Need documentation preview of Terraform module syntax before production deployment',
+              frequency: 1,
+              severity: 'concern',
+              citedSources: [],
+            },
+          ],
+          suggestedActionItems: ['Publish public Terraform registry module link in documentation header.'],
+        },
+        initialAcceptanceRate: 0.2,
+        holdOutAcceptanceRate: 0.8,
+        initialMedianPrice: 35,
+        holdOutMedianPrice: 35,
+        acceptanceRateSpread: { min: 0.7, median: 0.8, max: 0.9 },
+        priceSpread: { min: 35, median: 35, max: 50 },
+        resolvedObjectionsCount: 3,
+        totalInitialObjections: 3,
+        isHoldOutVerified: true,
+        deltaSummary:
+          'Hold-Out panel adoption shifted by +60% (from 20% to 80%). Resolved 3 of 3 fatal objections against blinded Cohort B.',
+      },
+    },
+  },
+  {
+    id: 'b2b_saas',
+    name: 'AuditPulse (B2B Security Agent)',
+    badge: 'Enterprise SaaS',
+    description: 'Continuous SOC-2 & ISO-27001 autonomous compliance and vendor audit agent.',
+    input: {
+      productName: 'AuditPulse AI',
+      tagline: 'Autonomous Continuous Compliance & Evidence Collection for Series A-C SaaS',
+      description:
+        'Connects into AWS, GitHub, Google Workspace, and Okta to autonomously compile audit logs, detect security drift, and generate auditor-ready SOC-2 Type II evidence packets every Monday morning.',
+      proposedPrice: 499,
+      billingPeriod: 'month',
+      targetAudience: 'CTOs, VP of Engineering, and IT Security Leads at high-growth SaaS companies',
+      category: 'b2b_saas',
+    },
+    cachedEvidence: [
+      {
+        id: 'ev_vanta_pricing',
+        sourceType: 'competitor_pricing',
+        title: 'Reddit r/cybersecurity: Drata vs Vanta Pricing & Annual Commitment',
+        snippet:
+          'Security leads report: "We paid $7,500 for the first year, then come renewal they wanted $15,000 for SOC-2 and ISO-27001... It was $20,000 upfront." Early-stage startups struggle with multi-year contract lock-ins.',
+        url: 'https://www.reddit.com/r/cybersecurity/comments/10iz243/drata_vs_vanta',
+        domain: 'reddit.com',
+        relevanceToPitch: 'Highlights market gap for monthly flexible billing ($499/mo) vs $15k-$20k upfront lock-ins.',
+      },
+      {
+        id: 'ev_soc2_reddit',
+        sourceType: 'reddit_complaint',
+        title: 'Reddit r/soc2: SOC 2 Type 1 & 2 Pricing and Consultancy Realities',
+        snippet:
+          'Founders note that compliance automation tools still require separate third-party auditor fees ($5k-$15k) and generate false-positive scanner alerts before the audit window.',
+        url: 'https://www.reddit.com/r/soc2/comments/1j8v8jb/soc_2_type_1_using_drata_need_advice_on_cost',
+        domain: 'reddit.com',
+        relevanceToPitch: 'Reveals customer skepticism about hidden audit consultancy fees and false positive fatigue.',
+      },
+    ],
+  },
+  {
+    id: 'anonymized_benchmark',
+    name: 'Blind Replay: Anonymized Runtime Install Fee',
+    badge: 'Blinded Historic Benchmark',
+    description:
+      'Sanitized test case based on an anonymized major game engine introducing an install-based fee.',
+    input: {
+      productName: 'EngineX Game Platform',
+      tagline: 'Runtime Install Fee for Commercial Game Releases',
+      description:
+        'A cross-platform game engine with ~50% mobile market share shifts from a flat seat license to charging developers $0.20 per game install once a title exceeds $200k in 12-month revenue and 200k lifetime installs.',
+      proposedPrice: 0.2,
+      billingPeriod: 'month',
+      targetAudience: 'Independent indie game developers, mobile studios, and commercial game studios',
+      category: 'anonymized_benchmark',
+    },
+    groundTruthObjections: [
+      'Piracy installs: Malicious users or botnets can re-install games to bankrupt developers',
+      'Freemium margin destruction: Games with low ARPU ($0.30-$0.50) lose up to 60%+ of net margin',
+      'Retroactive terms breach: Changing license terms on already published titles breaks publisher trust',
+      'Charity bundle & demo install ambiguity: Uncertainty on how installs are tracked across platforms',
+      'Proprietary tracking distrust: Lack of transparency on how the engine counts installs',
+      'Developer flight to open-source: Migration threat to Godot or Unreal Engine',
+    ],
+    cachedEvidence: [
+      {
+        id: 'ev_unity_cancellation',
+        sourceType: 'reddit_complaint',
+        title: 'Reddit r/gamedev: Engine Pricing Changes & Runtime Fee Cancellation Analysis',
+        snippet:
+          'Game developers discuss the economic backlash of per-install fees: studios revolted over unverified install counting, freemium margin wipeouts, and retroactive terms breaches.',
+        url: 'https://www.reddit.com/r/gamedev/comments/1oto28q/unity_pricing_changes_runtime_fee_cancellation',
+        domain: 'reddit.com',
+        relevanceToPitch: 'Ground-truth developer reactions documenting unverified install counting and freemium margin collapse.',
+      },
+      {
+        id: 'ev_runtime_backlash',
+        sourceType: 'reddit_complaint',
+        title: 'Reddit r/technology: Game Engine Dropping Controversial Runtime Install Fee',
+        snippet:
+          'Coverage of developer rebellion: developers warned that per-install fees destroy free-to-play economics, risk install-bombing from malicious actors, and breach trust on existing games.',
+        url: 'https://www.reddit.com/r/technology/comments/1ffv45c/unity_is_dropping_its_unpopular_perinstall',
+        domain: 'reddit.com',
+        relevanceToPitch: 'Documents the core developer objections: piracy install bombing, freemium margin destruction, and flight to open-source.',
+      },
+      {
+        id: 'ev_xbox_cancellation',
+        sourceType: 'reddit_complaint',
+        title: 'Reddit r/xbox: Industry Analysis of Runtime Fee Reversal',
+        snippet:
+          'Game studios and publishers note that retroactive license changes broke publisher trust and triggered mass migration plans to alternative game engines.',
+        url: 'https://www.reddit.com/r/xbox/comments/1ff7257/unity_cancels_controversial_fees_to_use_its_game',
+        domain: 'reddit.com',
+        relevanceToPitch: 'Validates commercial game studio flight risk and developer trust breakdown.',
+      },
+    ],
+  },
+];
