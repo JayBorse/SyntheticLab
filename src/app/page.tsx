@@ -1056,12 +1056,27 @@ export default function SyntheticLabPage() {
               </div>
             </div>
 
+            {verdict.audienceAlignmentWarning && (
+              <div className="p-3.5 rounded-[var(--radius-md)] bg-[var(--surface-2)] border border-[var(--amber-border)] text-xs text-[var(--amber)] flex items-start gap-2.5">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <div className="font-semibold font-mono text-[11px] uppercase tracking-wider">Audience Alignment Notice</div>
+                  <p className="leading-relaxed text-[var(--text-secondary)]">{verdict.audienceAlignmentWarning}</p>
+                </div>
+              </div>
+            )}
+
             {/* Three Big Numbers with sample sizes and range indicators */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Stat
                 label="Paid Commercial Adoption"
                 value={`${(verdict.paidAcceptanceRate * 100).toFixed(0)}%`}
                 sampleSize={verdict.totalPersonas}
+                secondaryText={
+                  verdict.inMarketTotal > 0
+                    ? `${(verdict.inMarketPaidAcceptanceRate * 100).toFixed(0)}% in-market ICP (${verdict.inMarketPaidAdoptCount}/${verdict.inMarketTotal}) • ${verdict.outOfMarketRejectCount} out-of-market`
+                    : undefined
+                }
                 range={{
                   min: Math.max(0, Math.round(verdict.paidAcceptanceRate * 100) - 10),
                   max: Math.min(100, Math.round(verdict.paidAcceptanceRate * 100) + 15),
@@ -1074,7 +1089,7 @@ export default function SyntheticLabPage() {
               <Stat
                 label="Median Willingness to Pay"
                 value={`$${verdict.priceRange.median}`}
-                unit={`/${verdict.priceRange.period}`}
+                unit={verdict.priceRange.monthlyEquivalentMedian && verdict.priceRange.monthlyEquivalentMedian !== verdict.priceRange.median ? `/${verdict.priceRange.period} ($${verdict.priceRange.monthlyEquivalentMedian}/mo)` : `/${verdict.priceRange.period}`}
                 sampleSize={verdict.totalPersonas}
                 range={{
                   min: verdict.priceRange.min,
@@ -1345,8 +1360,10 @@ export default function SyntheticLabPage() {
               </p>
 
               {evidence.length === 0 ? (
-                <div className="p-8 rounded-[var(--radius-sm)] border border-dashed border-[var(--border-subtle)] text-center text-xs text-[var(--text-muted)] font-mono">
-                  Evidence citations will appear once research stage runs.
+                <div className="p-8 rounded-[var(--radius-sm)] border border-dashed border-[var(--border-subtle)] text-center text-xs text-[var(--text-muted)] font-mono leading-relaxed">
+                  {verdict
+                    ? 'No external competitor evidence was found for this custom niche. Simulation executed against independent buyer economic models.'
+                    : 'Evidence citations will appear once research stage runs.'}
                 </div>
               ) : (
                 <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
@@ -1364,6 +1381,9 @@ export default function SyntheticLabPage() {
                             </span>
                             <span className="font-medium text-[var(--text-primary)] truncate text-[11px]">
                               {item.title}
+                            </span>
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--surface-3)] text-[var(--text-muted)] shrink-0">
+                              {item.sourceType.replace(/_/g, ' ')}
                             </span>
                           </div>
                           <a
@@ -1512,11 +1532,20 @@ export default function SyntheticLabPage() {
                     {/* Header: Name, Role, and Vote Chip */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors truncate">
-                          {ev.personaName}
+                        <div className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors truncate flex items-center gap-1.5">
+                          <span>{ev.personaName}</span>
+                          {(ev.isOutOfMarket || personaProfile?.isOutOfMarket) ? (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-normal bg-[var(--surface-3)] text-[var(--text-muted)] border border-[var(--border-subtle)]">
+                              Stress Test
+                            </span>
+                          ) : (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-normal bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)]">
+                              In-Market ICP
+                            </span>
+                          )}
                         </div>
                         <div className="text-[10px] font-mono text-[var(--text-muted)] truncate">
-                          {ev.role} • {personaProfile?.title || 'Decision Maker'}
+                          {ev.role.replace(/_/g, ' ')} • {personaProfile?.title || 'Decision Maker'}
                         </div>
                       </div>
 

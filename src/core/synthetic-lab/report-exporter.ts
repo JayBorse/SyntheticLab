@@ -19,7 +19,7 @@ export interface SimulationExportData {
   telemetry: {
     modelFast: string;
     modelReasoning: string;
-    totalTokens: number;
+    totalTokens?: number;
     parallelCalls: number;
     latencyMs: number;
   };
@@ -49,13 +49,23 @@ export function generateMarkdownReport(data: SimulationExportData): string {
   lines.push('');
   lines.push(`| Metric | Empirical Finding | Notes |`);
   lines.push(`| :--- | :--- | :--- |`);
-  lines.push(`| **Paid Commercial Adoption** | **${(verdict.paidAcceptanceRate * 100).toFixed(0)}%** | ${verdict.paidAdoptCount} of ${verdict.totalPersonas} personas willing to pay commercial price |`);
+  if (verdict.inMarketTotal > 0) {
+    lines.push(`| **In-Market Commercial Adoption** | **${(verdict.inMarketPaidAcceptanceRate * 100).toFixed(0)}%** | ${verdict.inMarketPaidAdoptCount} of ${verdict.inMarketTotal} in-market ICP personas willing to pay |`);
+    lines.push(`| **Out-of-Market Stress-Test Resistance** | **${verdict.outOfMarketRejectCount} of ${verdict.outOfMarketTotal} rejected** | Accidental / enterprise stress tests strictly segregated from ICP |`);
+  }
+  lines.push(`| **Overall Commercial Adoption** | **${(verdict.paidAcceptanceRate * 100).toFixed(0)}%** | ${verdict.paidAdoptCount} of ${verdict.totalPersonas} total personas paying commercial price |`);
   lines.push(`| **Overall Adoption (incl. free)** | **${(verdict.acceptanceRate * 100).toFixed(0)}%** | ${verdict.adoptCount} adopt / ${verdict.rejectCount} reject / ${verdict.hesitantCount} hesitant |`);
   lines.push(`| **Free-Tier Only Adopters** | **${verdict.freeAdoptCount} personas** | Adopters with $0 WTP (strictly filtered from commercial revenue) |`);
-  lines.push(`| **Proposed Baseline Price** | **$${input.proposedPrice}/${input.billingPeriod}** | Initial offer evaluated by buyer committee |`);
+  lines.push(`| **Proposed Baseline Price** | **${verdict.normalizedPriceDisplay || `$${input.proposedPrice}/${input.billingPeriod}`}** | Initial offer evaluated by buyer committee |`);
   lines.push(`| **Median Willingness to Pay** | **$${verdict.priceRange.median}/${verdict.priceRange.period}** | Empirical committee threshold |`);
   lines.push(`| **Price Resistance Spread** | **$${verdict.priceRange.min} – $${verdict.priceRange.max}** | Observed acceptable budget range |`);
   lines.push('');
+
+  if (verdict.audienceAlignmentWarning) {
+    lines.push(`> [!NOTE]`);
+    lines.push(`> **${verdict.audienceAlignmentWarning}**`);
+    lines.push('');
+  }
 
   // 2. Product Pitch & Pricing Architecture
   lines.push('## 2. Tested Pitch & Pricing Architecture');
@@ -64,7 +74,7 @@ export function generateMarkdownReport(data: SimulationExportData): string {
   lines.push(`- **Tagline:** ${input.tagline}`);
   lines.push(`- **Category:** ${input.category.replace('_', ' ').toUpperCase()}`);
   lines.push(`- **Target ICP:** ${input.targetAudience}`);
-  lines.push(`- **Baseline Price:** $${input.proposedPrice}/${input.billingPeriod}`);
+  lines.push(`- **Baseline Price:** ${verdict.normalizedPriceDisplay || `$${input.proposedPrice}/${input.billingPeriod}`}`);
   lines.push(`- **Product Description:** ${input.description}`);
   if (input.pricingTiers) {
     lines.push('');
@@ -101,23 +111,27 @@ export function generateMarkdownReport(data: SimulationExportData): string {
       lines.push(`  *Relevance: ${ev.relevanceToPitch}*`);
       lines.push('');
     });
+  } else {
+    lines.push('### Market Intelligence Research:');
+    lines.push('_No external competitor evidence was gathered for this custom product niche. Persona evaluations were computed purely from independent buyer economic models and pitch parameters._\n');
   }
 
   // 4. Cohort A: Individual Buyer Evaluations
-  lines.push('## 4. Cohort A: 10 Autonomous Buyer Persona Evaluations');
+  lines.push(`## 4. Cohort A: ${evaluations.length} Autonomous Buyer Persona Evaluations`);
   lines.push('');
-  lines.push('| Persona | Role | Company Profile | Budget Ceiling | Vote | Willingness to Pay | Primary Rationale |');
-  lines.push('| :--- | :--- | :--- | :--- | :--- | :--- | :--- |');
+  lines.push('| Persona | Role | Company Profile | Segment | Budget Ceiling | Vote | Willingness to Pay | Primary Rationale |');
+  lines.push('| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |');
 
   evaluations.forEach((ev) => {
     const persona = personas.find((p) => p.id === ev.personaId);
-    const role = ev.role.replace('_', ' ');
+    const role = ev.role.replace(/_/g, ' ');
     const voteBadge = ev.vote === 'adopt' ? '✓ ADOPT' : ev.vote === 'reject' ? '✕ REJECT' : '⚠ HESITANT';
     const ceiling = persona ? `$${persona.budgetCeiling}/${persona.budgetPeriod}` : 'N/A';
     const company = persona ? persona.companyProfile.replace(/\|/g, '/') : 'N/A';
+    const segment = ev.isOutOfMarket || persona?.isOutOfMarket ? 'Out-of-Market' : 'In-Market ICP';
     const safeRationale = ev.rationale.replace(/\|/g, '-').replace(/\n/g, ' ').slice(0, 80) + '...';
 
-    lines.push(`| **${ev.personaName}** | ${role} | ${company} | ${ceiling} | **${voteBadge}** | **$${ev.acceptablePrice}/${ev.acceptablePeriod}** | ${safeRationale} |`);
+    lines.push(`| **${ev.personaName}** | ${role} | ${company} | ${segment} | ${ceiling} | **${voteBadge}** | **$${ev.acceptablePrice}/${ev.acceptablePeriod}** | ${safeRationale} |`);
   });
   lines.push('');
 
@@ -126,7 +140,8 @@ export function generateMarkdownReport(data: SimulationExportData): string {
   lines.push('');
   evaluations.forEach((ev) => {
     const persona = personas.find((p) => p.id === ev.personaId);
-    lines.push(`#### ${ev.personaName} (${ev.role.replace('_', ' ')} - ${persona?.title || 'Decision Maker'})`);
+    const isOut = ev.isOutOfMarket || persona?.isOutOfMarket;
+    lines.push(`#### ${ev.personaName} (${ev.role.replace(/_/g, ' ')} - ${persona?.title || 'Decision Maker'}) [${isOut ? 'OUT-OF-MARKET STRESS TEST' : 'IN-MARKET ICP'}]`);
     lines.push(`- **Vote:** \`${ev.vote.toUpperCase()}\` | **WTP:** \`$${ev.acceptablePrice}/${ev.acceptablePeriod}\``);
     if (persona) {
       lines.push(`- **Company:** ${persona.companyProfile}`);
@@ -138,7 +153,7 @@ export function generateMarkdownReport(data: SimulationExportData): string {
     if (ev.fatalObjections.length > 0) {
       lines.push(`- **Objections Raised:**`);
       ev.fatalObjections.forEach((o) => {
-        lines.push(`  - [${o.severity.toUpperCase()}] ${o.objection}`);
+        lines.push(`  - [${o.severity.toUpperCase()}] ${o.objection}${o.groundedEvidenceUrl ? ` (Source: ${o.groundedEvidenceUrl})` : ''}`);
       });
     }
     if (ev.dealMakers.length > 0) {
@@ -151,6 +166,11 @@ export function generateMarkdownReport(data: SimulationExportData): string {
   if (optimizedPitch) {
     lines.push('## 5. Autonomous Optimization (NVIDIA Nemotron 3 Ultra)');
     lines.push('');
+    if (optimizedPitch.audienceAlignmentNotice) {
+      lines.push(`> [!IMPORTANT]`);
+      lines.push(`> **${optimizedPitch.audienceAlignmentNotice}**`);
+      lines.push('');
+    }
     lines.push(`- **Revised Tagline:** ${optimizedPitch.revisedTagline}`);
     lines.push(`- **Revised Description:** ${optimizedPitch.revisedDescription}`);
     lines.push(`- **Calibrated Price:** **$${optimizedPitch.calibratedPrice}/${optimizedPitch.calibratedPeriod}**`);
@@ -158,12 +178,12 @@ export function generateMarkdownReport(data: SimulationExportData): string {
     lines.push(`- **Strategic Rationale:** ${optimizedPitch.strategicRationale}`);
     lines.push('');
     if (optimizedPitch.objectionCountermeasures && optimizedPitch.objectionCountermeasures.length > 0) {
-      lines.push('### Contractual Countermeasures & SLA Commitments:');
+      lines.push('### Specific Countermeasures & Commitments:');
       lines.push('');
-      lines.push('| Target Objection | Contractual Guarantee / Countermeasure |');
-      lines.push('| :--- | :--- |');
+      lines.push('| Target Objection | Countermeasure & Solution | Effort Level |');
+      lines.push('| :--- | :--- | :--- |');
       optimizedPitch.objectionCountermeasures.forEach((cm) => {
-        lines.push(`| "${cm.targetObjection}" | ${cm.countermeasure} |`);
+        lines.push(`| "${cm.targetObjection}" | ${cm.countermeasure} | **${(cm.effort || 'low').toUpperCase()}** |`);
       });
       lines.push('');
     }
@@ -173,7 +193,7 @@ export function generateMarkdownReport(data: SimulationExportData): string {
   if (holdOutResult) {
     lines.push('## 6. Cohort B: Blinded Hold-Out Committee Validation');
     lines.push('');
-    lines.push(`Anti-circular proof: The optimized pitch was tested against an independent, role-mirrored committee (Cohort B) that never saw the initial debate.`);
+    lines.push(`Anti-circular proof: The optimized pitch was tested against an independent, role-mirrored committee (Cohort B) with fresh personas that never saw the initial debate.`);
     lines.push('');
     lines.push(`| Metric | Initial Run (Cohort A) | Hold-Out Panel (Cohort B) | Delta |`);
     lines.push(`| :--- | :--- | :--- | :--- |`);
@@ -183,6 +203,43 @@ export function generateMarkdownReport(data: SimulationExportData): string {
     lines.push(`| **Resolved Blockers** | 0 | **${holdOutResult.resolvedObjectionsCount} of ${holdOutResult.totalInitialObjections}** | ${((holdOutResult.resolvedObjectionsCount / Math.max(1, holdOutResult.totalInitialObjections)) * 100).toFixed(0)}% resolved |`);
     lines.push('');
     lines.push(`**Delta Summary:** ${holdOutResult.deltaSummary}`);
+    lines.push('');
+
+    // Objection Trajectory Table (Before vs After)
+    if (holdOutResult.objectionDeltas && holdOutResult.objectionDeltas.length > 0) {
+      lines.push('### Objection Trajectory (Before vs After Counts):');
+      lines.push('');
+      lines.push('| Initial Objection Topic | Cohort A Frequency | Cohort B Frequency | Status |');
+      lines.push('| :--- | :--- | :--- | :--- |');
+      holdOutResult.objectionDeltas.forEach((d) => {
+        const badge =
+          d.status === 'resolved'
+            ? '✓ RESOLVED'
+            : d.status === 'reduced'
+            ? '↓ REDUCED'
+            : d.status === 'new'
+            ? '+ NEW'
+            : '✕ PERSISTED';
+        lines.push(`| "${d.objectionTopic}" | ${d.beforeCount} of ${verdict.totalPersonas} | ${d.afterCount} of ${holdOutResult.holdOutPersonas.length} | **${badge}** |`);
+      });
+      lines.push('');
+    }
+
+    // Cohort B Persona Evaluation Table (Fixes Claude critique #9)
+    lines.push(`### Cohort B: ${holdOutResult.holdOutEvaluations.length} Hold-Out Persona Evaluations`);
+    lines.push('');
+    lines.push('| Persona | Role | Company Profile | Segment | Vote | Willingness to Pay | Primary Rationale |');
+    lines.push('| :--- | :--- | :--- | :--- | :--- | :--- | :--- |');
+    holdOutResult.holdOutEvaluations.forEach((ev) => {
+      const persona = holdOutResult.holdOutPersonas.find((p) => p.id === ev.personaId);
+      const role = ev.role.replace(/_/g, ' ');
+      const voteBadge = ev.vote === 'adopt' ? '✓ ADOPT' : ev.vote === 'reject' ? '✕ REJECT' : '⚠ HESITANT';
+      const company = persona ? persona.companyProfile.replace(/\|/g, '/') : 'N/A';
+      const segment = ev.isOutOfMarket || persona?.isOutOfMarket ? 'Out-of-Market' : 'In-Market ICP';
+      const safeRationale = ev.rationale.replace(/\|/g, '-').replace(/\n/g, ' ').slice(0, 80) + '...';
+
+      lines.push(`| **${ev.personaName}** | ${role} | ${company} | ${segment} | **${voteBadge}** | **$${ev.acceptablePrice}/${ev.acceptablePeriod}** | ${safeRationale} |`);
+    });
     lines.push('');
   }
 
@@ -196,9 +253,12 @@ export function generateMarkdownReport(data: SimulationExportData): string {
     lines.push('');
   }
 
-  // Footer & Telemetry
+  // Footer & Telemetry (Measured tokens only, hide if unavailable)
   lines.push('---');
-  lines.push(`*Generated by SyntheticLab • Token Consumption: ${telemetry.totalTokens.toLocaleString()} tokens • Latency: ${(telemetry.latencyMs / 1000).toFixed(2)}s • Nebius Token Factory & NVIDIA NIM*`);
+  const tokenTelemetry = telemetry.totalTokens && telemetry.totalTokens > 0
+    ? ` • Measured Token Consumption: ${telemetry.totalTokens.toLocaleString()} tokens`
+    : '';
+  lines.push(`*Generated by SyntheticLab • Latency: ${(telemetry.latencyMs / 1000).toFixed(2)}s${tokenTelemetry} • Nebius Token Factory & NVIDIA NIM*`);
 
   return lines.join('\n');
 }
@@ -214,10 +274,12 @@ export function generateCsvExport(data: SimulationExportData): string {
   };
 
   const headers = [
+    'Cohort',
     'Persona ID',
     'Persona Name',
     'Role',
     'Title',
+    'Audience Segment',
     'Company Profile',
     'Budget Ceiling ($)',
     'Budget Period',
@@ -233,16 +295,19 @@ export function generateCsvExport(data: SimulationExportData): string {
 
   const rows: string[] = [headers.map(escapeCsv).join(',')];
 
+  // Cohort A rows
   data.evaluations.forEach((ev) => {
     const persona = data.personas.find((p) => p.id === ev.personaId);
     const objections = ev.fatalObjections.map((o) => `[${o.severity}] ${o.objection}`).join('; ');
     const dealMakers = ev.dealMakers.join('; ');
 
     const row = [
+      escapeCsv('Cohort A (Initial)'),
       escapeCsv(ev.personaId),
       escapeCsv(ev.personaName),
       escapeCsv(ev.role),
       escapeCsv(persona?.title || 'Decision Maker'),
+      escapeCsv(ev.isOutOfMarket || persona?.isOutOfMarket ? 'Out-of-Market Stress Test' : 'In-Market ICP'),
       escapeCsv(persona?.companyProfile || ''),
       escapeCsv(persona?.budgetCeiling || 0),
       escapeCsv(persona?.budgetPeriod || data.input.billingPeriod),
@@ -258,6 +323,37 @@ export function generateCsvExport(data: SimulationExportData): string {
 
     rows.push(row.join(','));
   });
+
+  // Cohort B rows
+  if (data.holdOutResult) {
+    data.holdOutResult.holdOutEvaluations.forEach((ev) => {
+      const persona = data.holdOutResult!.holdOutPersonas.find((p) => p.id === ev.personaId);
+      const objections = ev.fatalObjections.map((o) => `[${o.severity}] ${o.objection}`).join('; ');
+      const dealMakers = ev.dealMakers.join('; ');
+
+      const row = [
+        escapeCsv('Cohort B (Hold-Out)'),
+        escapeCsv(ev.personaId),
+        escapeCsv(ev.personaName),
+        escapeCsv(ev.role),
+        escapeCsv(persona?.title || 'Decision Maker'),
+        escapeCsv(ev.isOutOfMarket || persona?.isOutOfMarket ? 'Out-of-Market Stress Test' : 'In-Market ICP'),
+        escapeCsv(persona?.companyProfile || ''),
+        escapeCsv(persona?.budgetCeiling || 0),
+        escapeCsv(persona?.budgetPeriod || data.input.billingPeriod),
+        escapeCsv(persona?.riskTolerance || 'medium'),
+        escapeCsv(persona?.primaryConstraint || ''),
+        escapeCsv(ev.vote),
+        escapeCsv(ev.acceptablePrice),
+        escapeCsv(ev.acceptablePeriod),
+        escapeCsv(objections),
+        escapeCsv(dealMakers),
+        escapeCsv(ev.rationale),
+      ];
+
+      rows.push(row.join(','));
+    });
+  }
 
   return rows.join('\r\n');
 }

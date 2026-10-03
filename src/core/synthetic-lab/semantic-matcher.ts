@@ -120,20 +120,22 @@ export function evaluateBenchmarkObjectionRecall(
  * Determines whether two objections share core semantic intent and grievance domain.
  */
 export function areObjectionsSemanticallyRelated(objA: string, objB: string): boolean {
-  const a = objA.toLowerCase();
-  const b = objB.toLowerCase();
+  const a = objA.toLowerCase().replace(/[-_]/g, ' ');
+  const b = objB.toLowerCase().replace(/[-_]/g, ' ');
 
   // Core semantic domain markers
   const domainMarkers = [
-    ['soc 2', 'soc2', 'compliance', 'audit', 'iso 27001'],
+    ['soc 2', 'soc2', 'compliance', 'audit', 'iso 27001', 'security certification', 'cmek', 'encryption'],
     ['tls', 'encryption', 'in transit', 'at rest', 'aes'],
-    ['vpc', 'private link', 'peering', 'isolated endpoint', 'data residency'],
-    ['unpredictable', 'usage-based', 'overage', 'spend cap', 'pinecone', 'spike', 'cost shock'],
-    ['sla', 'latency', 'uptime', 'cold-start', 'cold start', 'error budget'],
+    ['vpc', 'private link', 'peering', 'isolated endpoint', 'data residency', 'zero data retention'],
+    ['unpredictable', 'usage based', 'overage', 'spend cap', 'pinecone', 'spike', 'cost shock', 'add on', 'unbudgeted'],
+    ['sla', 'latency', 'uptime', 'cold start', 'error budget', 'p99'],
     ['helm', 'kubernetes', 'k8s', 'ci/cd', 'argocd', 'deployment'],
-    ['migration', 'lock-in', 'export', 'openapi', 'qdrant', 'pgvector', 'weaviate'],
-    ['master agreement', 'msa', 'volume discount', 'procurement', 'enterprise terms'],
-    ['roi', 'budget ceiling', 'pricing tier', 'flat fee', 'monthly limit'],
+    ['migration', 'lock in', 'export', 'openapi', 'qdrant', 'pgvector', 'weaviate'],
+    ['master agreement', 'msa', 'volume discount', 'procurement', 'enterprise terms', 'coupa', 'servicenow'],
+    ['roi', 'budget ceiling', 'pricing tier', 'flat fee', 'monthly limit', 'exceeds budget', 'price exceeds'],
+    ['free tier', 'trial', 'freemium', 'sandbox', 'self serve'],
+    ['outside domain', 'outside our domain', 'unrelated', 'not meet enterprise requirements', 'indie developer'],
   ];
 
   // Check if both objections share any common domain marker

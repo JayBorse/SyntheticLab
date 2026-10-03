@@ -127,7 +127,6 @@ export async function POST(req: NextRequest) {
             telemetry: {
               modelFast: fastModel,
               modelReasoning: reasoningModel,
-              totalTokens: 14200,
               parallelCalls: personas.length,
               latencyMs,
             },

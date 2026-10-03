@@ -10,7 +10,8 @@ export type PersonaRole =
   | 'smb_founder'
   | 'procurement_director'
   | 'devops_lead'
-  | 'end_user';
+  | 'end_user'
+  | string;
 
 export interface SyntheticPersona {
   id: string;
@@ -25,6 +26,8 @@ export interface SyntheticPersona {
   existingStack: string[];
   evaluationCriteria: string[];
   isHoldOut?: boolean; // True if reserved for Phase 2 validation
+  isOutOfMarket?: boolean; // True if intentionally placed as out-of-market stress test (at most 2 of 10)
+  audienceMatch?: 'in_market' | 'out_of_market';
 }
 
 export interface GroundedEvidence {
@@ -46,6 +49,7 @@ export interface PersonaEvaluation {
   vote: PersonaVote;
   acceptablePrice: number; // What this persona is willing to pay
   acceptablePeriod: 'month' | 'year' | 'quarter' | 'one_time' | string;
+  isOutOfMarket?: boolean;
   fatalObjections: {
     objection: string;
     severity: 'blocker' | 'concern';
@@ -65,12 +69,30 @@ export interface SimulationVerdict {
   paidAdoptCount: number; // Adopters with acceptablePrice > 0 (commercial conversion)
   freeAdoptCount: number; // Adopters who only accept at $0 (free-tier only)
   paidAcceptanceRate: number; // paidAdoptCount / total
+
+  // In-market vs out-of-market segmentation
+  inMarketTotal: number;
+  inMarketAdoptCount: number;
+  inMarketPaidAdoptCount: number;
+  inMarketHesitantCount: number;
+  inMarketRejectCount: number;
+  inMarketAcceptanceRate: number;
+  inMarketPaidAcceptanceRate: number;
+  outOfMarketTotal: number;
+  outOfMarketRejectCount: number;
+
+  // Normalized monthly-equivalent price metrics
+  monthlyEquivalentPrice: number;
+  normalizedPriceDisplay: string;
+  audienceAlignmentWarning?: string; // If significant out-of-market resistance or wrong audience detected
+
   priceRange: {
     min: number;
     median: number;
     max: number;
     currency: string;
     period: 'month' | 'year' | 'quarter' | 'one_time' | string;
+    monthlyEquivalentMedian?: number;
   };
   topObjections: {
     objection: string;
@@ -102,9 +124,11 @@ export interface OptimizedPitch {
   objectionCountermeasures: {
     targetObjection: string;
     countermeasure: string;
+    effort?: 'low' | 'medium' | 'high';
     evidenceAddressedUrl?: string;
   }[];
   strategicRationale: string;
+  audienceAlignmentNotice?: string;
 }
 
 export interface HoldOutRetestResult {
@@ -115,6 +139,8 @@ export interface HoldOutRetestResult {
   holdOutAcceptanceRate: number;
   initialPaidAcceptanceRate: number;
   holdOutPaidAcceptanceRate: number;
+  inMarketInitialPaidRate?: number;
+  inMarketHoldOutPaidRate?: number;
   initialMedianPrice: number;
   holdOutMedianPrice: number;
   acceptanceRateSpread: {
@@ -129,6 +155,12 @@ export interface HoldOutRetestResult {
   };
   resolvedObjectionsCount: number;
   totalInitialObjections: number;
+  objectionDeltas?: {
+    objectionTopic: string;
+    beforeCount: number;
+    afterCount: number;
+    status: 'resolved' | 'reduced' | 'persisted' | 'new';
+  }[];
   isHoldOutVerified: boolean;
   deltaSummary: string;
 }
@@ -158,7 +190,7 @@ export interface SimulationRunEvent {
     telemetry?: {
       modelFast: string;
       modelReasoning: string;
-      totalTokens: number;
+      totalTokens?: number;
       parallelCalls: number;
       latencyMs: number;
     };

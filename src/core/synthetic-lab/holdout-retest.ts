@@ -9,12 +9,12 @@ import {
 } from './types';
 import { generateSyntheticPersonas } from './persona-generator';
 import { evaluatePersonaReaction, computeSimulationVerdict } from './simulation-engine';
-import { computeResolvedObjections } from './semantic-matcher';
+import { areObjectionsSemanticallyRelated } from './semantic-matcher';
 
 /**
  * Executes an honest, anti-circular Hold-Out Retest.
  * Evaluates the optimized pitch against a FRESH cohort of decision-makers (Cohort B)
- * that strictly mirrors the role composition of Cohort A but with completely fresh identities.
+ * that strictly mirrors the role and ICP composition of Cohort A but with completely fresh identities.
  *
  * Runs multi-round stochastic evaluation passes across temperature postures (T=0.2, 0.4, 0.6)
  * to measure true empirical adoption and pricing spread without arbitrary hardcoded variance.
@@ -44,6 +44,7 @@ export async function executeHoldOutRetest(
     count: initialPersonas.length,
     isHoldOut: true,
     targetRoles,
+    mirrorPersonas: initialPersonas,
     excludeNames: initialNames,
   });
 
@@ -53,12 +54,17 @@ export async function executeHoldOutRetest(
     if (initialNames.has(uniqueName.toLowerCase())) {
       uniqueName = `${uniqueName} (Holdout #${idx + 1})`;
     }
+    const sourcePersona = initialPersonas[idx];
+    const isOut = sourcePersona ? Boolean(sourcePersona.isOutOfMarket) : Boolean(p.isOutOfMarket);
+
     return {
       ...p,
       id: `holdout_${Date.now()}_${idx}`,
       name: uniqueName,
       role: targetRoles[idx] || p.role,
       isHoldOut: true,
+      isOutOfMarket: isOut,
+      audienceMatch: isOut ? 'out_of_market' : 'in_market',
     };
   });
 
@@ -115,17 +121,52 @@ export async function executeHoldOutRetest(
       ? allPrices[midIndex]
       : Math.round(((allPrices[midIndex - 1] ?? minPrice) + (allPrices[midIndex] ?? maxPrice)) / 2);
 
-  // Calculate objection resolution using semantic conceptual matcher
-  const initialObjections = initialVerdict.topObjections.map((o) => o.objection);
-  const holdoutObjections = holdOutVerdict.topObjections.map((o) => o.objection);
-  const resolutionResult = computeResolvedObjections(initialObjections, holdoutObjections);
+  // Compute before-vs-after objection deltas by semantic matching
+  const objectionDeltas: NonNullable<HoldOutRetestResult['objectionDeltas']> = [];
+  let resolvedCount = 0;
+
+  initialVerdict.topObjections.forEach((initObj) => {
+    const beforeCount = initObj.frequency;
+    let afterCount = 0;
+
+    // Check how many personas in primary Cohort B raised a semantically related objection
+    primaryEvaluations.forEach((pe) => {
+      const hasMatch = pe.fatalObjections.some((o) =>
+        areObjectionsSemanticallyRelated(initObj.objection, o.objection)
+      );
+      if (hasMatch) afterCount += 1;
+    });
+
+    let status: 'resolved' | 'reduced' | 'persisted' = 'persisted';
+    if (afterCount === 0) {
+      status = 'resolved';
+      resolvedCount += 1;
+    } else if (afterCount < beforeCount) {
+      status = 'reduced';
+      resolvedCount += 1;
+    } else {
+      status = 'persisted';
+    }
+
+    objectionDeltas.push({
+      objectionTopic: initObj.objection,
+      beforeCount,
+      afterCount,
+      status,
+    });
+  });
 
   const initialPaidRate = initialVerdict.paidAcceptanceRate ?? initialVerdict.acceptanceRate;
   const holdOutPaidRate = holdOutVerdict.paidAcceptanceRate ?? holdOutVerdict.acceptanceRate;
   const deltaPaidPct = Math.round((holdOutPaidRate - initialPaidRate) * 100);
   const deltaOverallPct = Math.round((holdOutVerdict.acceptanceRate - initialVerdict.acceptanceRate) * 100);
 
-  const deltaSummary = `Hold-Out panel paid commercial adoption shifted by ${deltaPaidPct >= 0 ? '+' : ''}${deltaPaidPct}% (overall adoption shift: ${deltaOverallPct >= 0 ? '+' : ''}${deltaOverallPct}%, from ${(initialPaidRate * 100).toFixed(0)}% to ${(holdOutPaidRate * 100).toFixed(0)}%). Across 3 empirical trials, adoption range was [${Math.round(minAcceptance * 100)}% – ${Math.round(maxAcceptance * 100)}%]. Semantically resolved ${resolutionResult.resolvedCount} of ${resolutionResult.totalInitial} initial fatal objections against blinded Cohort B.`;
+  let deltaSummary = '';
+  if (initialPaidRate === 0 && holdOutPaidRate === 0) {
+    deltaSummary = `Hold-Out panel paid commercial adoption remained at 0% across independent cohorts [spread: ${Math.round(minAcceptance * 100)}%–${Math.round(maxAcceptance * 100)}%]. While ${resolvedCount} of ${initialVerdict.topObjections.length} blockers were reduced or alleviated, fundamental market resistance or out-of-market reviewer mismatch persisted.`;
+  } else {
+    deltaSummary = `Hold-Out panel paid commercial adoption shifted by ${deltaPaidPct >= 0 ? '+' : ''}${deltaPaidPct}% (overall adoption shift: ${deltaOverallPct >= 0 ? '+' : ''}${deltaOverallPct}%, from ${(initialPaidRate * 100).toFixed(0)}% to ${(holdOutPaidRate * 100).toFixed(0)}%). Across 3 empirical trials, adoption range was [${Math.round(minAcceptance * 100)}% – ${Math.round(maxAcceptance * 100)}%]. Semantically resolved or reduced ${resolvedCount} of ${initialVerdict.topObjections.length} initial blockers against blinded Cohort B.`;
+  }
 
   return {
     holdOutPersonas,
@@ -135,6 +176,8 @@ export async function executeHoldOutRetest(
     holdOutAcceptanceRate: holdOutVerdict.acceptanceRate,
     initialPaidAcceptanceRate: initialPaidRate,
     holdOutPaidAcceptanceRate: holdOutPaidRate,
+    inMarketInitialPaidRate: initialVerdict.inMarketPaidAcceptanceRate,
+    inMarketHoldOutPaidRate: holdOutVerdict.inMarketPaidAcceptanceRate,
     initialMedianPrice: initialVerdict.priceRange.median,
     holdOutMedianPrice: medianPrice,
     acceptanceRateSpread: {
@@ -147,8 +190,9 @@ export async function executeHoldOutRetest(
       median: medianPrice,
       max: maxPrice,
     },
-    resolvedObjectionsCount: resolutionResult.resolvedCount,
-    totalInitialObjections: resolutionResult.totalInitial,
+    resolvedObjectionsCount: resolvedCount,
+    totalInitialObjections: initialVerdict.topObjections.length,
+    objectionDeltas,
     isHoldOutVerified: holdOutPersonas.every((p) => !initialIds.has(p.id)) && holdOutPersonas.length === initialPersonas.length,
     deltaSummary,
   };

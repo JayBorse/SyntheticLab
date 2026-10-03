@@ -5,6 +5,7 @@ import {
   OptimizedPitch,
 } from './types';
 import { nebiusNemotron } from '@/core/ai/nebius';
+import { normalizePricingCadence } from './pricing-normalizer';
 
 const ULTRA_MODEL_ID = process.env.NEBIUS_ULTRA_MODEL_ID || 'nvidia/Nemotron-3-Ultra-550b-a55b';
 
@@ -12,71 +13,102 @@ const ULTRA_MODEL_ID = process.env.NEBIUS_ULTRA_MODEL_ID || 'nvidia/Nemotron-3-U
  * Autonomous Pitch & Pricing Optimizer
  * Powered by NVIDIA Nemotron 3 Ultra on Nebius Token Factory
  *
- * Takes empirical objections and pricing resistance from initial swarm debate,
- * and synthesizes an optimized value proposition, packaging, and risk-reversal terms.
+ * Formulates realistic, high-leverage commercial fixes strictly tailored to the product's ICP.
+ * Never invents enterprise compliance for indie/consumer products, never sets price to $0 unless freemium,
+ * and labels every fix with an engineering/operational effort level (low | medium | high).
  */
 export async function optimizeProductPitch(
   input: SimulationInput,
   verdict: SimulationVerdict,
   evidence: GroundedEvidence[]
 ): Promise<OptimizedPitch> {
+  const isExplicitlyFreemium =
+    `${input.description} ${input.tagline} ${input.pricingTiers || ''}`.toLowerCase().includes('freemium') ||
+    `${input.description} ${input.tagline} ${input.pricingTiers || ''}`.toLowerCase().includes('free tier') ||
+    input.proposedPrice === 0;
+
+  // Calibrate commercial price floor: never set to $0 unless explicitly freemium
+  let floorPrice = verdict.priceRange.median;
+  if (floorPrice <= 0 && !isExplicitlyFreemium) {
+    floorPrice = Math.max(1, Math.round(input.proposedPrice * 0.75));
+  }
+
+  const normalizedOriginal = normalizePricingCadence(input.proposedPrice, input.billingPeriod);
+  const normalizedCalibrated = normalizePricingCadence(floorPrice, input.billingPeriod);
+
   const topFrictionSummary = verdict.topObjections
     .map(
       (o, i) =>
-        `#${i + 1} [${o.severity.toUpperCase()}] "${o.objection}" (Cited by ${o.frequency} personas; Sources: ${o.citedSources.join(', ') || 'N/A'})`
+        `#${i + 1} [${o.severity.toUpperCase()}] "${o.objection}" (Frequency: ${o.frequency} personas; Citations: ${o.citedSources.join(', ') || 'None'})`
     )
     .join('\n');
 
-  const evidenceSnippets = evidence
-    .slice(0, 3)
-    .map((e) => `- ${e.title} (${e.domain}): "${e.snippet}" [${e.url}]`)
-    .join('\n');
+  const evidenceSnippets =
+    evidence.length > 0
+      ? evidence
+          .slice(0, 3)
+          .map((e) => `- ${e.title} (${e.domain}): "${e.snippet}" [${e.url}]`)
+          .join('\n')
+      : 'None gathered for this custom niche.';
 
-  const prompt = `You are a Principal Product Strategist and B2B Monetization Scientist.
-An autonomous buyer committee stress-tested the following startup pitch and uncovered severe fatal objections and pricing resistance.
+  // Check if out-of-market rejections skew the verdict
+  const isAudienceMismatch =
+    verdict.outOfMarketTotal > 0 &&
+    verdict.outOfMarketRejectCount >= verdict.outOfMarketTotal &&
+    verdict.inMarketTotal > 0;
 
-ORIGINAL PRODUCT PITCH:
+  const audienceNotice = isAudienceMismatch
+    ? `AUDIENCE MISMATCH DETECTED: ${verdict.outOfMarketRejectCount} out of ${verdict.outOfMarketTotal} out-of-market stress-test personas rejected because this product is outside their operational scope. In-market ICP adoption is ${(verdict.inMarketPaidAcceptanceRate * 100).toFixed(0)}%. DO NOT invent enterprise features (e.g. NetSuite, SOC-2 escrow, air-gapped VPC) for an indie developer or consumer product. Keep solutions focused 100% on the core ICP (${input.targetAudience}).`
+    : undefined;
+
+  const prompt = `You are a Principal Product Strategist and Monetization Architect.
+An autonomous buyer committee stress-tested the following pitch and surfaced commercial objections.
+
+PRODUCT PITCH:
 Product: ${input.productName}
 Tagline: ${input.tagline}
 Description: ${input.description}
-Proposed Price: $${input.proposedPrice} per ${input.billingPeriod}${input.pricingTiers ? `\nPricing Tiers & Packaging:\n${input.pricingTiers}` : ''}
+Proposed Price: ${normalizedOriginal.displayFull}
 Target ICP: ${input.targetAudience}
+Category: ${input.category}
 
-EMPIRICAL ARENA TEST RESULTS:
-- Current Acceptance Rate: ${(verdict.acceptanceRate * 100).toFixed(0)}% (${verdict.adoptCount} adopt / ${verdict.rejectCount} reject / ${verdict.hesitantCount} hesitant)
-- Empirical Median Willingness to Pay: $${verdict.priceRange.median} / ${verdict.priceRange.period}
-- Observed Price Resistance Range: $${verdict.priceRange.min} - $${verdict.priceRange.max}
+ARENA FEEDBACK SUMMARY:
+- In-Market ICP Adoption: ${(verdict.inMarketPaidAcceptanceRate * 100).toFixed(0)}% (${verdict.inMarketPaidAdoptCount} paid adopt, ${verdict.inMarketHesitantCount} hesitant, ${verdict.inMarketRejectCount} reject out of ${verdict.inMarketTotal} in-market buyers)
+- Out-of-Market Stress-Test Resistance: ${verdict.outOfMarketRejectCount} of ${verdict.outOfMarketTotal} rejected
+- Empirical Target Price: ${normalizedCalibrated.displayFull}
+${audienceNotice ? `\nCRITICAL AUDIENCE CONSTRAINT:\n${audienceNotice}\n` : ''}
 
-CRITICAL FATAL OBJECTIONS RAISED BY BUYERS:
+FATAL OBJECTIONS RAISED:
 ${topFrictionSummary}
 
-RELEVANT GROUNDED MARKET EVIDENCE:
+RELEVANT MARKET EVIDENCE:
 ${evidenceSnippets}
 
-YOUR STRATEGIC MISSION:
-Formulate an honest, actionable Founder Action Plan & Commercial Commitment Roadmap.
-IMPORTANT HONESTY RULE: DO NOT claim past achievements the startup has not done yet (e.g. do NOT say "we already achieved SOC 2" or "we already built custom enterprise pipelines").
-INSTEAD, frame the offer as contractual guarantees, policy commitments, and packaging roadmaps that a real founder can commit to in contract terms:
-1. Revised Tagline: Sharper, outcome-oriented, directly dispelling the primary overage or lock-in fear.
-2. Revised Commercial Proposal: Formulate the commercial proposal as contractual terms (e.g. hard-capped usage tiers, SLA penalties with 10x query credits, commitment to deliver SOC-2 Type II audit within 90 days backed by escrow, and a 14-day production sandbox).
-3. Calibrated Price & Packaging: Calibrate baseline price to the empirical median ($${verdict.priceRange.median}/${input.billingPeriod}) with hard usage limits and zero unexpected variable fees.
-4. Countermeasures: Specify the exact contractual commitment or roadmap milestone that answers each blocker.
+RULES FOR YOUR OPTIMIZATION:
+1. STRICT ICP INTEGRITY: Stay strictly within the needs of "${input.targetAudience}".
+   - If this is an indie developer tool (e.g. iOS preflight, App Store tools): DO NOT add enterprise bloat like SOC-2 escrow, NetSuite/Stripe billing sync, or air-gapped CI. Address local developer concerns (e.g. 100% local analysis, zero code uploads, transparent credit packs, affordable monthly pricing).
+   - If this is a consumer app: DO NOT add enterprise SSO or HRIS integrations. Address subscription fatigue, clear free trials, and easy cancellation.
+   - If this is an SMB service (e.g. restaurant booking): Focus on flat fees vs per-cover commissions, POS sync, and SMS guest reminders.
+2. PRICE CONSTRAINT: The calibratedPrice MUST be > 0 (e.g. $${floorPrice}) unless the pitch is explicitly freemium.
+3. EFFORT LABELS: Every objection countermeasure MUST have an "effort" field set to "low", "medium", or "high".
+4. HONESTY: Frame changes as clear packaging policies, transparent terms, and roadmaps.
 
-Return ONLY a valid JSON object matching this exact schema:
+Return ONLY a valid JSON object matching this schema:
 {
-  "revisedTagline": "Sharper outcome-oriented tagline addressing top objection",
-  "revisedDescription": "Commercial proposal with contractual terms, hard caps, and roadmap commitments",
-  "calibratedPrice": ${verdict.priceRange.median},
-  "calibratedPeriod": "${verdict.priceRange.period}",
-  "packagingFix": "Exact packaging restructuring (e.g. Free 14-day sandbox + $X base tier with hard usage caps and zero overage surcharges)",
+  "revisedTagline": "Sharper, benefit-driven tagline addressing primary in-market friction",
+  "revisedDescription": "Clear value proposition and packaging terms tailored to ${input.targetAudience}",
+  "calibratedPrice": ${floorPrice},
+  "calibratedPeriod": "${input.billingPeriod}",
+  "packagingFix": "Specific packaging adjustment (e.g., Transparent monthly pricing of $X/mo + 14-day trial with hard caps and zero overage surcharges)",
   "objectionCountermeasures": [
     {
-      "targetObjection": "The exact text or topic of the objection",
-      "countermeasure": "Contractual commitment or roadmap policy that neutralizes this blocker",
-      "evidenceAddressedUrl": "${evidence[0]?.url || ''}"
+      "targetObjection": "The exact objection or friction",
+      "countermeasure": "Realistic solution or packaging term",
+      "effort": "low",
+      "evidenceAddressedUrl": ""
     }
   ],
-  "strategicRationale": "Why these specific commercial terms and roadmap commitments will satisfy enterprise procurement."
+  "strategicRationale": "Why this restructuring wins in-market buyers without adding unnecessary operational bloat."
 }
 
 Return ONLY valid JSON.`;
@@ -86,12 +118,12 @@ Return ONLY valid JSON.`;
       [
         {
           role: 'system',
-          content: 'You output only strict, valid JSON matching the requested optimization schema.',
+          content: 'You output only strict, valid JSON matching the requested optimization schema. Never wrap in Markdown code blocks.',
         },
         { role: 'user', content: prompt },
       ],
       {
-        modelId: ULTRA_MODEL_ID, // Use Nemotron 3 Ultra for deep strategic reasoning
+        modelId: ULTRA_MODEL_ID,
         responseFormat: 'json_object',
         temperature: 0.3,
         maxTokens: 3000,
@@ -101,33 +133,40 @@ Return ONLY valid JSON.`;
     const jsonText = cleanJsonText(response.text);
     const parsed = JSON.parse(jsonText);
 
+    const calibratedPrice =
+      typeof parsed.calibratedPrice === 'number' && (parsed.calibratedPrice > 0 || isExplicitlyFreemium)
+        ? parsed.calibratedPrice
+        : floorPrice;
+
     return {
       originalInput: input,
-      revisedTagline: parsed.revisedTagline || `Guaranteed ${input.tagline}`,
+      revisedTagline: parsed.revisedTagline || `Predictable ${input.tagline}`,
       revisedDescription: parsed.revisedDescription || input.description,
-      calibratedPrice: typeof parsed.calibratedPrice === 'number' ? parsed.calibratedPrice : verdict.priceRange.median,
-      calibratedPeriod: parsed.calibratedPeriod === 'year' ? 'year' : input.billingPeriod,
-      packagingFix: parsed.packagingFix || `Introduced predictable tier capped at $${verdict.priceRange.median}/${input.billingPeriod}`,
+      calibratedPrice,
+      calibratedPeriod: parsed.calibratedPeriod || input.billingPeriod,
+      packagingFix: parsed.packagingFix || `Introduced predictable tier capped at $${calibratedPrice}/${input.billingPeriod}`,
       objectionCountermeasures: Array.isArray(parsed.objectionCountermeasures)
-        ? parsed.objectionCountermeasures.map((c: { targetObjection?: string; countermeasure?: string; evidenceAddressedUrl?: string }) => ({
-            targetObjection: c.targetObjection || 'Price and integration friction',
-            countermeasure: c.countermeasure || 'Transparent capped pricing with 30-day proof of concept.',
-            evidenceAddressedUrl: c.evidenceAddressedUrl || evidence[0]?.url,
+        ? parsed.objectionCountermeasures.map((c: { targetObjection?: string; countermeasure?: string; effort?: 'low' | 'medium' | 'high'; evidenceAddressedUrl?: string }) => ({
+            targetObjection: c.targetObjection || 'Pricing and usage predictability',
+            countermeasure: c.countermeasure || 'Transparent pricing with zero hidden overage charges.',
+            effort: c.effort === 'high' ? 'high' : c.effort === 'medium' ? 'medium' : 'low',
+            evidenceAddressedUrl: c.evidenceAddressedUrl || undefined,
           }))
         : [
             {
               targetObjection: verdict.topObjections[0]?.objection || 'Budget unpredictability',
-              countermeasure: `Introduced hard monthly ceiling at $${verdict.priceRange.median} to eliminate variable billing anxiety.`,
-              evidenceAddressedUrl: evidence[0]?.url,
+              countermeasure: `Introduced transparent pricing at $${calibratedPrice}/${input.billingPeriod} with clear usage caps.`,
+              effort: 'low',
             },
           ],
       strategicRationale:
         parsed.strategicRationale ||
-        `Positioning calibrated to meet empirical committee threshold of $${verdict.priceRange.median}/${input.billingPeriod} with explicit security and migration SLA.`,
+        `Positioning calibrated to meet empirical in-market WTP ($${calibratedPrice}/${input.billingPeriod}) while eliminating surprise overage anxiety.`,
+      audienceAlignmentNotice: audienceNotice,
     };
   } catch (err) {
     console.warn('Nebius Ultra optimization failed, using calibrated empirical fallback:', err);
-    return getFallbackOptimizedPitch(input, verdict, evidence);
+    return getFallbackOptimizedPitch(input, verdict, evidence, floorPrice, audienceNotice);
   }
 }
 
@@ -146,30 +185,33 @@ function cleanJsonText(text: string): string {
 function getFallbackOptimizedPitch(
   input: SimulationInput,
   verdict: SimulationVerdict,
-  evidence: GroundedEvidence[]
+  evidence: GroundedEvidence[],
+  calibratedPrice: number,
+  audienceNotice?: string
 ): OptimizedPitch {
-  const calibratedPrice = verdict.priceRange.median > 0 ? verdict.priceRange.median : Math.round(input.proposedPrice * 0.75);
-  const topBlocker = verdict.topObjections[0]?.objection || 'Variable billing and operational switching costs';
+  const topBlocker = verdict.topObjections[0]?.objection || 'Price transparency and usage caps';
 
   return {
     originalInput: input,
-    revisedTagline: `Predictable, SLA-Backed ${input.productName} for High-Scale Teams`,
-    revisedDescription: `${input.description} Now featuring guaranteed 99.99% uptime SLAs, one-click sandbox migration, and transparent monthly cost capping at $${calibratedPrice}/${input.billingPeriod} with no surprise overages.`,
+    revisedTagline: `Transparent, Self-Serve ${input.productName} for ${input.targetAudience}`,
+    revisedDescription: `${input.description} Now featuring guaranteed hard usage caps, a 14-day full sandbox trial, and transparent monthly pricing at $${calibratedPrice}/${input.billingPeriod} with zero surprise fees.`,
     calibratedPrice,
     calibratedPeriod: input.billingPeriod,
-    packagingFix: `Shifted from variable billing to fixed monthly tier capped at $${calibratedPrice}/${input.billingPeriod} with zero-risk 30-day money-back guarantee.`,
+    packagingFix: `Shifted to predictable pricing at $${calibratedPrice}/${input.billingPeriod} with hard caps, self-serve onboarding, and 14-day money-back guarantee.`,
     objectionCountermeasures: [
       {
         targetObjection: topBlocker,
-        countermeasure: `Directly neutralizes "${topBlocker}" by including free assisted migration, sandbox testing environment, and guaranteed price lock.`,
+        countermeasure: `Neutralizes "${topBlocker}" with explicit usage caps, zero surprise overages, and self-serve onboarding.`,
+        effort: 'low',
         evidenceAddressedUrl: evidence[0]?.url,
       },
       {
-        targetObjection: 'Security & compliance approval bottlenecks',
-        countermeasure: 'Contractual commitment: 90-day SOC-2 escrow rider, zero-data-retention policy, and customer data isolation guarantees.',
-        evidenceAddressedUrl: evidence[1]?.url,
+        targetObjection: 'Clarity on billing cadence and commitment periods',
+        countermeasure: 'Introduced flexible monthly billing alongside discounted multi-month options with zero lock-in.',
+        effort: 'medium',
       },
     ],
-    strategicRationale: `By lowering the baseline price by ${Math.round(((input.proposedPrice - calibratedPrice) / (input.proposedPrice || 1)) * 100)}% to match empirical buyer WTP ($${calibratedPrice}) and eliminating variable overage risk, the pitch removes the primary enterprise procurement blocker.`,
+    strategicRationale: `Calibrated baseline pricing to empirical willingness-to-pay ($${calibratedPrice}/${input.billingPeriod}) and eliminated variable overage fears to convert hesitant in-market buyers.`,
+    audienceAlignmentNotice: audienceNotice,
   };
 }

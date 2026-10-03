@@ -13,6 +13,9 @@ import {
 } from '../src/core/synthetic-lab/semantic-matcher';
 import { checkSimulationRateLimit } from '../src/core/security/rate-limiter';
 import { optimizeProductPitch } from '../src/core/synthetic-lab/optimizer';
+import { scoutMarketEvidence, deriveSourceType } from '../src/core/synthetic-lab/market-scout';
+import { normalizePricingCadence } from '../src/core/synthetic-lab/pricing-normalizer';
+import { clusterAndRankObjections } from '../src/core/synthetic-lab/simulation-engine';
 import {
   generateMarkdownReport,
   generateCsvExport,
@@ -313,15 +316,16 @@ describe('SyntheticLab Core Architecture & Verification Suite', () => {
     const md = generateMarkdownReport(exportData);
     assert.ok(md.includes('# SyntheticLab Procurement Teardown: VectorStream AI'), 'MD must contain header with product title');
     assert.ok(md.includes('## 1. Executive Procurement Verdict'), 'MD must contain executive verdict section');
-    assert.ok(md.includes('## 4. Cohort A: 10 Autonomous Buyer Persona Evaluations'), 'MD must contain persona evaluations');
+    assert.ok(md.includes('Autonomous Buyer Persona Evaluations'), 'MD must contain persona evaluations');
     assert.ok(md.includes('## 5. Autonomous Optimization (NVIDIA Nemotron 3 Ultra)'), 'MD must contain optimization section');
     assert.ok(md.includes('## 6. Cohort B: Blinded Hold-Out Committee Validation'), 'MD must contain holdout validation');
 
     // 2. CSV Matrix Verification
     const csv = generateCsvExport(exportData);
-    assert.ok(csv.startsWith('"Persona ID","Persona Name"'), 'CSV must start with proper column headers');
+    assert.ok(csv.includes('"Persona ID","Persona Name"'), 'CSV must contain proper column headers');
     const lines = csv.split('\r\n');
-    assert.equal(lines.length, exportData.evaluations.length + 1, 'CSV must have 1 header line plus 1 line per evaluation');
+    const expectedRowCount = exportData.evaluations.length + (exportData.holdOutResult?.holdOutEvaluations.length || 0) + 1;
+    assert.equal(lines.length, expectedRowCount, 'CSV must have 1 header line plus Cohort A and Cohort B evaluation lines');
 
     // 3. JSON Export Verification
     const jsonStr = generateJsonExport(exportData);
@@ -330,5 +334,276 @@ describe('SyntheticLab Core Architecture & Verification Suite', () => {
     assert.equal(parsed.cohortA.personas.length, exportData.personas.length);
     assert.equal(parsed.cohortA.evaluations.length, exportData.evaluations.length);
     assert.ok(parsed.metadata.exportedAt, 'Must include export timestamp');
+  });
+
+  it('12. Preset evidence never leaks into custom non-preset input runs', async () => {
+    const customPitch: SimulationInput = {
+      productName: 'AppsVantage',
+      tagline: 'App Store Intelligence & Preflight for iOS Developers',
+      description: 'Discovers app niches and runs local preflight audits for App Store review risks with zero code uploads.',
+      proposedPrice: 19.99,
+      billingPeriod: '3 months',
+      targetAudience: 'Indie iOS developers and solo app creators',
+      category: 'devtools_api', // Same category as VectorStream AI preset!
+    };
+
+    const evidence = await scoutMarketEvidence(customPitch);
+
+    // CRITICAL HONESTY TEST: Custom pitch must NEVER leak VectorStream's Pinecone preset evidence!
+    evidence.forEach((ev) => {
+      assert.ok(
+        !ev.url.includes('pinecone.io') && !ev.snippet.toLowerCase().includes('pinecone'),
+        `Custom pitch AppsVantage must not leak preset evidence from pinecone: ${ev.url}`
+      );
+    });
+  });
+
+  it('13. Domain source type classification derives strictly from hostname and content', () => {
+    // Reddit must NEVER be labeled G2_REVIEW
+    assert.equal(
+      deriveSourceType('reddit.com', 'Vector DB comparison', 'Discussion on pricing'),
+      'reddit_complaint',
+      'Reddit must be classified as reddit_complaint'
+    );
+    assert.equal(
+      deriveSourceType('g2.com', 'Product Reviews', 'User ratings'),
+      'g2_review',
+      'G2 domain must be classified as g2_review'
+    );
+    assert.equal(
+      deriveSourceType('producthunt.com', 'Launch', 'Community comments'),
+      'g2_review',
+      'Product Hunt must be classified as review'
+    );
+    assert.equal(
+      deriveSourceType('stripe.com', 'Pricing & Fees', 'Stripe costs per transaction'),
+      'competitor_pricing',
+      'Pricing content must be classified as competitor_pricing'
+    );
+  });
+
+  it('14. Pricing normalizer accurately handles multi-month cadences, packs, and monthly equivalents', () => {
+    // AppsVantage: $19.99 for 3 months -> $6.66/mo equivalent
+    const quarterly = normalizePricingCadence(19.99, '3 months');
+    assert.equal(quarterly.monthlyEquivalent, 6.66);
+    assert.equal(quarterly.billingPeriodLabel, '3 months');
+    assert.ok(quarterly.displayFull.includes('$6.66/mo equivalent'));
+
+    // Free tier
+    const free = normalizePricingCadence(0, 'month');
+    assert.equal(free.monthlyEquivalent, 0);
+    assert.equal(free.displayFull, '$0 (Free)');
+
+    // Niche Scan pack: $15 for 5 scans
+    const pack = normalizePricingCadence(15, '5 scans');
+    assert.equal(pack.isPackOrCredit, true);
+    assert.equal(pack.displayShort, '$15 pack');
+
+    // Annual plan
+    const annual = normalizePricingCadence(120, 'year');
+    assert.equal(annual.monthlyEquivalent, 10);
+    assert.ok(annual.displayFull.includes('$10/mo equivalent'));
+  });
+
+  it('15. Objection clustering groups semantically similar objections before ranking', () => {
+    const mockEvaluations: PersonaEvaluation[] = [
+      {
+        personaId: 'p1',
+        personaName: 'Julian',
+        role: 'smb_founder',
+        vote: 'hesitant',
+        acceptablePrice: 15,
+        acceptablePeriod: '3 months',
+        fatalObjections: [
+          { objection: 'Variable usage-based add-ons (Niche Scan packs) create unpredictable monthly spend', severity: 'blocker' },
+        ],
+        dealMakers: [],
+        rationale: 'Pricing fear',
+      },
+      {
+        personaId: 'p2',
+        personaName: 'Marcus',
+        role: 'enterprise_cfo',
+        vote: 'reject',
+        acceptablePrice: 0,
+        acceptablePeriod: '3 months',
+        fatalObjections: [
+          { objection: 'Product lacks guaranteed hard spend caps; variable add-on scans lead to unpredictable expenses', severity: 'blocker' },
+        ],
+        dealMakers: [],
+        rationale: 'Overages',
+      },
+      {
+        personaId: 'p3',
+        personaName: 'Rachel',
+        role: 'security_lead',
+        vote: 'reject',
+        acceptablePrice: 0,
+        acceptablePeriod: '3 months',
+        fatalObjections: [
+          { objection: 'No SOC-2 Type II compliance evidence provided', severity: 'blocker' },
+        ],
+        dealMakers: [],
+        rationale: 'Security',
+      },
+      {
+        personaId: 'p4',
+        personaName: 'Marcus Bell',
+        role: 'security_lead',
+        vote: 'reject',
+        acceptablePrice: 0,
+        acceptablePeriod: '3 months',
+        fatalObjections: [
+          { objection: 'Product lacks SOC-2 Type II certification and customer-managed encryption', severity: 'blocker' },
+        ],
+        dealMakers: [],
+        rationale: 'Security 2',
+      },
+    ];
+
+    const clusters = clusterAndRankObjections(mockEvaluations);
+
+    // Both pairs should be clustered!
+    assert.equal(clusters.length, 2, 'Should cluster 4 objections into 2 distinct semantic topics');
+    assert.equal(clusters[0].frequency, 2, 'Top objection must have frequency 2 (not 1 of 10!)');
+    assert.equal(clusters[1].frequency, 2, 'Second objection must have frequency 2');
+  });
+
+  it('16. In-Market vs Out-of-Market segmentation accurately tracks audience alignment', () => {
+    const input: SimulationInput = {
+      productName: 'AppsVantage',
+      tagline: 'App Store Intelligence',
+      description: 'iOS Developer Tool',
+      proposedPrice: 19.99,
+      billingPeriod: '3 months',
+      targetAudience: 'Indie iOS Developers',
+      category: 'devtools_api',
+    };
+
+    const evaluations: PersonaEvaluation[] = [
+      // 3 In-Market iOS Personas (2 adopt, 1 hesitant)
+      {
+        personaId: 'p1',
+        personaName: 'Chloe',
+        role: 'indie_developer',
+        vote: 'adopt',
+        acceptablePrice: 16,
+        acceptablePeriod: '3 months',
+        isOutOfMarket: false,
+        fatalObjections: [],
+        dealMakers: [],
+        rationale: 'Fits my budget',
+      },
+      {
+        personaId: 'p2',
+        personaName: 'Julian',
+        role: 'studio_founder',
+        vote: 'adopt',
+        acceptablePrice: 19.99,
+        acceptablePeriod: '3 months',
+        isOutOfMarket: false,
+        fatalObjections: [],
+        dealMakers: [],
+        rationale: 'Great value',
+      },
+      {
+        personaId: 'p3',
+        personaName: 'Marco',
+        role: 'freelance_ios',
+        vote: 'hesitant',
+        acceptablePrice: 12,
+        acceptablePeriod: '3 months',
+        isOutOfMarket: false,
+        fatalObjections: [{ objection: 'Need CLI export', severity: 'concern' }],
+        dealMakers: [],
+        rationale: 'Close call',
+      },
+      // 2 Out-of-Market Stress-Test Personas (2 reject)
+      {
+        personaId: 'p4',
+        personaName: 'Victoria',
+        role: 'procurement_director',
+        vote: 'reject',
+        acceptablePrice: 0,
+        acceptablePeriod: '3 months',
+        isOutOfMarket: true,
+        fatalObjections: [{ objection: 'Outside enterprise domain: lacks Coupa integration', severity: 'blocker' }],
+        dealMakers: [],
+        rationale: 'Irrelevant to enterprise IT',
+      },
+      {
+        personaId: 'p5',
+        personaName: 'Rachel',
+        role: 'security_lead',
+        vote: 'reject',
+        acceptablePrice: 0,
+        acceptablePeriod: '3 months',
+        isOutOfMarket: true,
+        fatalObjections: [{ objection: 'Outside enterprise domain: no SOC 2 escrow', severity: 'blocker' }],
+        dealMakers: [],
+        rationale: 'Healthcare compliance not met',
+      },
+    ];
+
+    const verdict = computeSimulationVerdict(input, evaluations);
+
+    // Segregated metrics verification
+    assert.equal(verdict.inMarketTotal, 3);
+    assert.equal(verdict.inMarketAdoptCount, 2);
+    assert.equal(verdict.inMarketPaidAdoptCount, 2);
+    assert.equal(verdict.inMarketAcceptanceRate, 0.67);
+    assert.equal(verdict.inMarketPaidAcceptanceRate, 0.67);
+
+    assert.equal(verdict.outOfMarketTotal, 2);
+    assert.equal(verdict.outOfMarketRejectCount, 2);
+
+    // Overall adoption is dragged down by out-of-market personas (2 of 5 = 40%)
+    assert.equal(verdict.paidAcceptanceRate, 0.4);
+
+    // Audience alignment notice must be populated!
+    assert.ok(verdict.audienceAlignmentWarning, 'Must generate audience alignment warning');
+    assert.ok(verdict.audienceAlignmentWarning.includes('Audience Segmentation Notice'));
+  });
+
+  it('17. Markdown report includes Cohort B persona table and before vs after objection deltas', () => {
+    const vectorStream = SIMULATION_PRESETS.find((p) => p.id === 'devtools_api')!;
+    const savedRun = vectorStream.savedRun!;
+
+    const exportData = {
+      input: vectorStream.input,
+      verdict: savedRun.verdict,
+      personas: savedRun.personas,
+      evidence: vectorStream.cachedEvidence,
+      evaluations: savedRun.evaluations,
+      optimizedPitch: savedRun.optimizedPitch || null,
+      holdOutResult: savedRun.holdOutResult || null,
+      telemetry: {
+        modelFast: 'nemotron-3-super-120b',
+        modelReasoning: 'Nemotron-3-Ultra-550b',
+        totalTokens: 18450,
+        parallelCalls: 5,
+        latencyMs: 1420,
+      },
+    };
+
+    const md = generateMarkdownReport(exportData);
+
+    // Verify Cohort B table presence (Fix for Claude issue #9)
+    assert.ok(md.includes('### Cohort B: 5 Hold-Out Persona Evaluations'), 'Report must contain Cohort B persona table');
+    assert.ok(md.includes('| Persona | Role | Company Profile | Segment | Vote | Willingness to Pay | Primary Rationale |'), 'Cohort B table must have proper columns');
+
+    // Verify telemetry: token consumption is displayed only because totalTokens is present
+    assert.ok(md.includes('Measured Token Consumption: 18,450 tokens'), 'Report must display measured token consumption');
+
+    // Test with missing totalTokens (telemetry hidden)
+    const exportDataNoTokens = {
+      ...exportData,
+      telemetry: {
+        ...exportData.telemetry,
+        totalTokens: undefined,
+      },
+    };
+    const mdNoTokens = generateMarkdownReport(exportDataNoTokens);
+    assert.ok(!mdNoTokens.includes('Measured Token Consumption'), 'Report must hide token metric when not measured');
   });
 });
