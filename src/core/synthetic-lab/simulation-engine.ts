@@ -12,7 +12,8 @@ const FAST_MODEL_ID = process.env.NEBIUS_FAST_MODEL_ID || 'nvidia/NVIDIA-Nemotro
 export async function evaluatePersonaReaction(
   input: SimulationInput,
   persona: SyntheticPersona,
-  evidence: GroundedEvidence[]
+  evidence: GroundedEvidence[],
+  options?: { temperature?: number }
 ): Promise<PersonaEvaluation> {
   // Prevent benchmark contamination: sanitize brand names if anonymized benchmark
   const isAnonymized = input.category === 'anonymized_benchmark';
@@ -94,7 +95,7 @@ Return ONLY valid JSON.`;
       {
         modelId: FAST_MODEL_ID,
         responseFormat: 'json_object',
-        temperature: 0.3,
+        temperature: typeof options?.temperature === 'number' ? options.temperature : 0.3,
       }
     );
 

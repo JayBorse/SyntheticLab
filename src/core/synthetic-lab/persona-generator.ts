@@ -5,11 +5,18 @@ const FAST_MODEL_ID = process.env.NEBIUS_FAST_MODEL_ID || 'nvidia/NVIDIA-Nemotro
 
 export async function generateSyntheticPersonas(
   input: SimulationInput,
-  options?: { count?: number; isHoldOut?: boolean; excludeNames?: Set<string> }
+  options?: { count?: number; isHoldOut?: boolean; excludeNames?: Set<string>; targetRoles?: import('./types').PersonaRole[] }
 ): Promise<SyntheticPersona[]> {
-  const count = options?.count || 10;
+  const targetRoles = options?.targetRoles;
+  const count = targetRoles ? targetRoles.length : (options?.count || 10);
   const isHoldOut = options?.isHoldOut || false;
   const excludeNames = options?.excludeNames;
+
+  const roleInstruction = targetRoles
+    ? `CRITICAL ROLE PARITY REQUIREMENT: You MUST generate exactly ${targetRoles.length} personas matching this EXACT 1-to-1 role sequence:
+${targetRoles.map((r, i) => `Persona #${i + 1}: ${r}`).join('\n')}
+Each persona MUST match their specified role.`
+    : `Generate ${count} personas across these core decision-maker roles (approx 2 per role): enterprise_cfo, staff_engineer, security_lead, smb_founder, procurement_director, devops_lead.`;
 
   const prompt = `You are an expert market analyst and organizational sociologist.
 Based on the following product pitch, generate ${count} DISTINCT, HETEROGENEOUS synthetic decision-maker personas who would realistically evaluate this purchase.
@@ -22,9 +29,10 @@ Proposed Price: $${input.proposedPrice} per ${input.billingPeriod}
 Target Audience: ${input.targetAudience}
 
 REQUIREMENTS:
-1. Generate ${count} personas across these core decision-maker roles (approx 2 per role): enterprise_cfo, staff_engineer, security_lead, smb_founder, procurement_director, devops_lead.
+1. ${roleInstruction}
 2. Give each persona realistic budget ceilings, risk tolerances, and specific pain points.
-3. ${isHoldOut ? 'This is a FRESH HOLD-OUT COMMITTEE (Cohort B). Ensure distinct organizational profiles from standard buyer cohorts.' : 'Create standard representative buyer committee (Cohort A).'}
+3. ${isHoldOut ? 'This is a FRESH HOLD-OUT COMMITTEE (Cohort B). Ensure distinct organizational profiles and completely different individual names from standard buyer cohorts.' : 'Create standard representative buyer committee (Cohort A).'}
+${excludeNames && excludeNames.size > 0 ? `4. DO NOT use any of these existing names: ${Array.from(excludeNames).join(', ')}.` : ''}
 
 You MUST return a JSON object with a "personas" key containing an array of ${count} objects matching this exact structure:
 {
@@ -32,7 +40,7 @@ You MUST return a JSON object with a "personas" key containing an array of ${cou
     {
       "id": "persona_1",
       "name": "Sarah Chen",
-      "role": "enterprise_cfo",
+      "role": "${targetRoles ? targetRoles[0] : 'enterprise_cfo'}",
       "title": "VP of Finance & Operations",
       "companyProfile": "Series B B2B SaaS (120 employees, $15M ARR)",
       "budgetCeiling": 500,
@@ -73,10 +81,11 @@ Return ONLY valid JSON.`;
         if (excludeNames && excludeNames.has(name.toLowerCase())) {
           name = `${name} (Cohort B #${idx + 1})`;
         }
+        const assignedRole = targetRoles && targetRoles[idx] ? targetRoles[idx] : (p.role || (idx % 5 === 0 ? 'enterprise_cfo' : idx % 5 === 1 ? 'staff_engineer' : idx % 5 === 2 ? 'security_lead' : idx % 5 === 3 ? 'smb_founder' : 'procurement_director'));
         return {
           id: `persona_${isHoldOut ? 'holdout_' : ''}${Date.now()}_${idx}`,
           name,
-          role: p.role || (idx % 5 === 0 ? 'enterprise_cfo' : idx % 5 === 1 ? 'staff_engineer' : idx % 5 === 2 ? 'security_lead' : idx % 5 === 3 ? 'smb_founder' : 'procurement_director'),
+          role: assignedRole,
           title: p.title || 'Technical Decision Maker',
           companyProfile: p.companyProfile || 'Growth Tech Company',
           budgetCeiling: typeof p.budgetCeiling === 'number' ? p.budgetCeiling : input.proposedPrice * 1.5,
@@ -93,9 +102,9 @@ Return ONLY valid JSON.`;
         return generated.slice(0, count);
       }
 
-      // If model returned fewer than requested count, augment with distinct fallback roles
+      // If model returned fewer than requested count, augment with role-matched fallbacks
       const existingNames = new Set(generated.map((g) => g.name.toLowerCase()));
-      const fallbacks = getFallbackPersonas(input, count, isHoldOut).filter((f) => !existingNames.has(f.name.toLowerCase()));
+      const fallbacks = getFallbackPersonas(input, count, isHoldOut, targetRoles, excludeNames).filter((f) => !existingNames.has(f.name.toLowerCase()));
       return [...generated, ...fallbacks].slice(0, count);
     }
   } catch (err) {
@@ -103,7 +112,7 @@ Return ONLY valid JSON.`;
   }
 
   // Resilient fallback calibrated archetypes
-  return getFallbackPersonas(input, count, isHoldOut);
+  return getFallbackPersonas(input, count, isHoldOut, targetRoles, excludeNames);
 }
 
 function cleanJsonText(text: string): string {
@@ -118,7 +127,13 @@ function cleanJsonText(text: string): string {
   return trimmed;
 }
 
-function getFallbackPersonas(input: SimulationInput, count: number, isHoldOut: boolean): SyntheticPersona[] {
+function getFallbackPersonas(
+  input: SimulationInput,
+  count: number,
+  isHoldOut: boolean,
+  targetRoles?: import('./types').PersonaRole[],
+  excludeNames?: Set<string>
+): SyntheticPersona[] {
   const baseArchetypes: SyntheticPersona[] = [
     {
       id: `p_cfo1_${Date.now()}`,
@@ -260,7 +275,73 @@ function getFallbackPersonas(input: SimulationInput, count: number, isHoldOut: b
       evaluationCriteria: ['Credit-card self-serve', 'Generous developer tier', 'Fast time-to-value'],
       isHoldOut,
     },
+    // Additional pool entries to ensure high-cardinality role matching
+    {
+      id: `p_proc2_${Date.now()}`,
+      name: isHoldOut ? 'Sarah Jenkins' : 'Gregory House',
+      role: 'procurement_director',
+      title: isHoldOut ? 'SVP Sourcing & Procurement' : 'Vendor Management Lead',
+      companyProfile: isHoldOut ? 'Global FinTech Consortium' : 'Enterprise Healthcare Network',
+      budgetCeiling: Math.round(input.proposedPrice * 2.8),
+      budgetPeriod: input.billingPeriod,
+      riskTolerance: 'low',
+      primaryConstraint: 'Requires formal SOC 2 escrow, MSA sign-off, and net-60 payment terms.',
+      existingStack: ['Coupa', 'Oracle ERP'],
+      evaluationCriteria: ['Contract flexibility', 'SLA credits', 'Audit compliance'],
+      isHoldOut,
+    },
+    {
+      id: `p_devops2_${Date.now()}`,
+      name: isHoldOut ? 'Jordan Hayes' : 'Kevin Flynn',
+      role: 'devops_lead',
+      title: isHoldOut ? 'Principal Cloud Infrastructure Engineer' : 'Staff SRE',
+      companyProfile: isHoldOut ? 'High-Throughput Streaming Platform' : 'Cloud Native SaaS',
+      budgetCeiling: Math.round(input.proposedPrice * 1.8),
+      budgetPeriod: input.billingPeriod,
+      riskTolerance: 'medium',
+      primaryConstraint: 'Needs automated Terraform providers, zero manual provisioning, and clear p99 latency SLA.',
+      existingStack: ['Terraform', 'Kubernetes', 'Prometheus'],
+      evaluationCriteria: ['Infrastructure as Code', 'p99 latency', 'High availability'],
+      isHoldOut,
+    },
   ];
+
+  if (targetRoles && targetRoles.length > 0) {
+    const selectedPersonas: SyntheticPersona[] = [];
+    const usedIds = new Set<string>();
+
+    targetRoles.forEach((role, idx) => {
+      // Find candidate matching role
+      let candidate = baseArchetypes.find(
+        (a) =>
+          a.role === role &&
+          !usedIds.has(a.id) &&
+          (!excludeNames || !excludeNames.has(a.name.toLowerCase()))
+      );
+
+      if (!candidate) {
+        // Fallback: take any candidate of that role and customize name
+        const roleCandidate = baseArchetypes.find((a) => a.role === role) || baseArchetypes[idx % baseArchetypes.length];
+        const uniqueName = `${roleCandidate.name} (Cohort B #${idx + 1})`;
+        candidate = {
+          ...roleCandidate,
+          id: `p_matched_${role}_${Date.now()}_${idx}`,
+          name: uniqueName,
+          role,
+          isHoldOut,
+        };
+      }
+
+      usedIds.add(candidate.id);
+      selectedPersonas.push({
+        ...candidate,
+        id: `p_holdout_${idx}_${Date.now()}`,
+        isHoldOut,
+      });
+    });
+
+    return selectedPersonas;
+  }
 
   return baseArchetypes.slice(0, count);
 }

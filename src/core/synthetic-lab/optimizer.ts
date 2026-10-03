@@ -54,27 +54,29 @@ RELEVANT GROUNDED MARKET EVIDENCE:
 ${evidenceSnippets}
 
 YOUR STRATEGIC MISSION:
-Directly resolve the top fatal objections and align the packaging with empirical buyer willingness-to-pay ($${verdict.priceRange.median}/${input.billingPeriod}).
-1. Rewrite the Tagline to be sharper, outcome-oriented, and immediately dispel the #1 objection.
-2. Rewrite the Description to explicitly embed risk reversals (e.g., zero-downtime migration, SLA guarantees, no variable overage spikes, sandbox environment).
-3. Calibrate the baseline price to the empirical median ($${verdict.priceRange.median} or calibrated tier) and define the packaging structure.
-4. Provide concrete countermeasures addressing each top objection individually.
+Formulate an honest, actionable Founder Action Plan & Commercial Commitment Roadmap.
+IMPORTANT HONESTY RULE: DO NOT claim past achievements the startup has not done yet (e.g. do NOT say "we already achieved SOC 2" or "we already built custom enterprise pipelines").
+INSTEAD, frame the offer as contractual guarantees, policy commitments, and packaging roadmaps that a real founder can commit to in contract terms:
+1. Revised Tagline: Sharper, outcome-oriented, directly dispelling the primary overage or lock-in fear.
+2. Revised Commercial Proposal: Formulate the commercial proposal as contractual terms (e.g. hard-capped usage tiers, SLA penalties with 10x query credits, commitment to deliver SOC-2 Type II audit within 90 days backed by escrow, and a 14-day production sandbox).
+3. Calibrated Price & Packaging: Calibrate baseline price to the empirical median ($${verdict.priceRange.median}/${input.billingPeriod}) with hard usage limits and zero unexpected variable fees.
+4. Countermeasures: Specify the exact contractual commitment or roadmap milestone that answers each blocker.
 
 Return ONLY a valid JSON object matching this exact schema:
 {
-  "revisedTagline": "Sharper outcome-oriented tagline",
-  "revisedDescription": "Rewritten pitch incorporating specific guarantees and answers to blockers",
+  "revisedTagline": "Sharper outcome-oriented tagline addressing top objection",
+  "revisedDescription": "Commercial proposal with contractual terms, hard caps, and roadmap commitments",
   "calibratedPrice": ${verdict.priceRange.median},
   "calibratedPeriod": "${verdict.priceRange.period}",
-  "packagingFix": "Exact packaging restructuring (e.g. Free 14-day trial + $X base tier with hard usage caps)",
+  "packagingFix": "Exact packaging restructuring (e.g. Free 14-day sandbox + $X base tier with hard usage caps and zero overage surcharges)",
   "objectionCountermeasures": [
     {
       "targetObjection": "The exact text or topic of the objection",
-      "countermeasure": "How the new pitch or terms neutralize this blocker",
+      "countermeasure": "Contractual commitment or roadmap policy that neutralizes this blocker",
       "evidenceAddressedUrl": "${evidence[0]?.url || ''}"
     }
   ],
-  "strategicRationale": "Executive summary of why this new positioning will survive procurement review."
+  "strategicRationale": "Why these specific commercial terms and roadmap commitments will satisfy enterprise procurement."
 }
 
 Return ONLY valid JSON.`;
@@ -164,7 +166,7 @@ function getFallbackOptimizedPitch(
       },
       {
         targetObjection: 'Security & compliance approval bottlenecks',
-        countermeasure: 'Pre-packaged SOC-2 Type II report and zero-data-retention enterprise privacy agreement.',
+        countermeasure: 'Contractual commitment: 90-day SOC-2 escrow rider, zero-data-retention policy, and customer data isolation guarantees.',
         evidenceAddressedUrl: evidence[1]?.url,
       },
     ],

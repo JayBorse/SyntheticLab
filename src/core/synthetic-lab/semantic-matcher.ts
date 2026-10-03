@@ -115,3 +115,79 @@ export function evaluateBenchmarkObjectionRecall(
     details,
   };
 }
+
+/**
+ * Determines whether two objections share core semantic intent and grievance domain.
+ */
+export function areObjectionsSemanticallyRelated(objA: string, objB: string): boolean {
+  const a = objA.toLowerCase();
+  const b = objB.toLowerCase();
+
+  // Core semantic domain markers
+  const domainMarkers = [
+    ['soc 2', 'soc2', 'compliance', 'audit', 'iso 27001'],
+    ['tls', 'encryption', 'in transit', 'at rest', 'aes'],
+    ['vpc', 'private link', 'peering', 'isolated endpoint', 'data residency'],
+    ['unpredictable', 'usage-based', 'overage', 'spend cap', 'pinecone', 'spike', 'cost shock'],
+    ['sla', 'latency', 'uptime', 'cold-start', 'cold start', 'error budget'],
+    ['helm', 'kubernetes', 'k8s', 'ci/cd', 'argocd', 'deployment'],
+    ['migration', 'lock-in', 'export', 'openapi', 'qdrant', 'pgvector', 'weaviate'],
+    ['master agreement', 'msa', 'volume discount', 'procurement', 'enterprise terms'],
+    ['roi', 'budget ceiling', 'pricing tier', 'flat fee', 'monthly limit'],
+  ];
+
+  // Check if both objections share any common domain marker
+  const sharesDomainMarker = domainMarkers.some((markerGroup) => {
+    const aHas = markerGroup.some((m) => a.includes(m));
+    const bHas = markerGroup.some((m) => b.includes(m));
+    return aHas && bHas;
+  });
+
+  if (sharesDomainMarker) return true;
+
+  // Jaccard similarity on meaningful words (>3 chars)
+  const stopWords = new Set(['this', 'that', 'with', 'from', 'have', 'been', 'which', 'about', 'there', 'their', 'product', 'platform']);
+  const wordsA = new Set(a.split(/[^a-z0-9]+/).filter((w) => w.length > 3 && !stopWords.has(w)));
+  const wordsB = new Set(b.split(/[^a-z0-9]+/).filter((w) => w.length > 3 && !stopWords.has(w)));
+
+  if (wordsA.size === 0 || wordsB.size === 0) return false;
+
+  let intersection = 0;
+  wordsA.forEach((w) => {
+    if (wordsB.has(w)) intersection += 1;
+  });
+
+  const union = new Set([...wordsA, ...wordsB]).size;
+  const jaccard = intersection / union;
+  return jaccard >= 0.35;
+}
+
+/**
+ * Computes how many initial fatal objections were successfully resolved vs persisted in the holdout committee.
+ */
+export function computeResolvedObjections(
+  initialObjections: string[],
+  holdoutObjections: string[]
+): {
+  resolvedCount: number;
+  totalInitial: number;
+  persistedObjections: string[];
+} {
+  const persisted: string[] = [];
+  let resolvedCount = 0;
+
+  initialObjections.forEach((initObj) => {
+    const stillPresent = holdoutObjections.some((holdObj) => areObjectionsSemanticallyRelated(initObj, holdObj));
+    if (stillPresent) {
+      persisted.push(initObj);
+    } else {
+      resolvedCount += 1;
+    }
+  });
+
+  return {
+    resolvedCount,
+    totalInitial: initialObjections.length,
+    persistedObjections: persisted,
+  };
+}

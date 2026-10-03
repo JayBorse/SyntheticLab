@@ -9,11 +9,15 @@ import {
 } from './types';
 import { generateSyntheticPersonas } from './persona-generator';
 import { evaluatePersonaReaction, computeSimulationVerdict } from './simulation-engine';
+import { computeResolvedObjections } from './semantic-matcher';
 
 /**
  * Executes an honest, anti-circular Hold-Out Retest.
- * Evaluates the optimized pitch against a FRESH cohort of decision-makers
- * that never witnessed or participated in the initial complaint rounds.
+ * Evaluates the optimized pitch against a FRESH cohort of decision-makers (Cohort B)
+ * that strictly mirrors the role composition of Cohort A but with completely fresh identities.
+ *
+ * Runs multi-round stochastic evaluation passes across temperature postures (T=0.2, 0.4, 0.6)
+ * to measure true empirical adoption and pricing spread without arbitrary hardcoded variance.
  */
 export async function executeHoldOutRetest(
   optimizedPitch: OptimizedPitch,
@@ -31,80 +35,101 @@ export async function executeHoldOutRetest(
     billingPeriod: optimizedPitch.calibratedPeriod,
   };
 
-  // Generate a strictly fresh hold-out panel (Cohort B)
+  // Generate a strictly fresh, role-mirrored hold-out panel (Cohort B)
   const initialIds = new Set(initialPersonas.map((p) => p.id));
   const initialNames = new Set(initialPersonas.map((p) => p.name.toLowerCase()));
+  const targetRoles = initialPersonas.map((p) => p.role);
 
   const rawHoldOutPersonas = await generateSyntheticPersonas(revisedInput, {
-    count: 5,
+    count: initialPersonas.length,
     isHoldOut: true,
+    targetRoles,
+    excludeNames: initialNames,
   });
 
-  // Guarantee zero overlap with initial cohort
+  // Guarantee zero overlap with initial cohort while enforcing role symmetry
   const holdOutPersonas: SyntheticPersona[] = rawHoldOutPersonas.map((p, idx) => {
     let uniqueName = p.name;
     if (initialNames.has(uniqueName.toLowerCase())) {
-      uniqueName = `Dr. Alex Vance (Holdout #${idx + 1})`;
+      uniqueName = `${uniqueName} (Holdout #${idx + 1})`;
     }
     return {
       ...p,
       id: `holdout_${Date.now()}_${idx}`,
       name: uniqueName,
+      role: targetRoles[idx] || p.role,
       isHoldOut: true,
     };
   });
 
-  // Parallel evaluation across fresh hold-out personas
-  const holdOutEvaluations: PersonaEvaluation[] = [];
+  // Multi-round empirical evaluation to measure real spread across different market postures
+  // Round 1 (Baseline): T=0.4
+  // Round 2 (Conservative procurement): T=0.2
+  // Round 3 (Exploratory / growth): T=0.6
+  const roundAdoptionRates: number[] = [];
+  const roundPaidRates: number[] = [];
+  const allEvaluations: PersonaEvaluation[] = [];
+
+  // Execute primary baseline evaluation round (T=0.4)
+  const primaryEvaluations: PersonaEvaluation[] = [];
   const evalPromises = holdOutPersonas.map(async (persona) => {
-    const evaluation = await evaluatePersonaReaction(revisedInput, persona, evidence);
-    holdOutEvaluations.push(evaluation);
+    const evaluation = await evaluatePersonaReaction(revisedInput, persona, evidence, { temperature: 0.4 });
+    primaryEvaluations.push(evaluation);
+    allEvaluations.push(evaluation);
     if (onPersonaEvaluated) {
       onPersonaEvaluated(evaluation);
     }
     return evaluation;
   });
-
   await Promise.all(evalPromises);
 
-  // Compute hold-out empirical verdict
-  const holdOutVerdict = computeSimulationVerdict(revisedInput, holdOutEvaluations);
+  const holdOutVerdict = computeSimulationVerdict(revisedInput, primaryEvaluations);
+  roundAdoptionRates.push(holdOutVerdict.acceptanceRate);
+  roundPaidRates.push(holdOutVerdict.paidAcceptanceRate);
 
-  // Calculate empirical range across hold-out evaluations (no mockups, strictly computed)
-  const adoptRatio = holdOutVerdict.adoptCount / (holdOutVerdict.totalPersonas || 1);
-  const minAcceptance = Number(Math.max(0, adoptRatio - 0.1).toFixed(2));
-  const maxAcceptance = Number(Math.min(1, adoptRatio + 0.1).toFixed(2));
-
-  const prices = holdOutEvaluations.map((e) => e.acceptablePrice).sort((a, b) => a - b);
-  const minPrice = prices[0] ?? holdOutVerdict.priceRange.min;
-  const maxPrice = prices[prices.length - 1] ?? holdOutVerdict.priceRange.max;
-  const midIndex = Math.floor(prices.length / 2);
-  const medianPrice = prices.length % 2 !== 0 ? prices[midIndex] : Math.round(((prices[midIndex - 1] ?? minPrice) + (prices[midIndex] ?? maxPrice)) / 2);
-
-  // Compute resolved objections delta
-  const initialBlockerTexts = initialVerdict.topObjections.map((o) => o.objection.toLowerCase());
-  let resolvedCount = 0;
-
-  initialBlockerTexts.forEach((initObj) => {
-    const reappearedInHoldout = holdOutVerdict.topObjections.some((newObj) => {
-      const words = initObj.split(' ').filter((w) => w.length > 4);
-      return words.some((w) => newObj.objection.toLowerCase().includes(w));
-    });
-    if (!reappearedInHoldout) {
-      resolvedCount += 1;
-    }
+  // Execute secondary rounds for empirical variance measurement
+  const secondaryRoundPromises = [0.2, 0.6].map(async (temp) => {
+    const roundEvals = await Promise.all(
+      holdOutPersonas.map((persona) =>
+        evaluatePersonaReaction(revisedInput, persona, evidence, { temperature: temp })
+      )
+    );
+    const roundVerdict = computeSimulationVerdict(revisedInput, roundEvals);
+    roundAdoptionRates.push(roundVerdict.acceptanceRate);
+    roundPaidRates.push(roundVerdict.paidAcceptanceRate);
+    allEvaluations.push(...roundEvals);
   });
+  await Promise.all(secondaryRoundPromises);
+
+  // Empirical acceptance rate spread derived directly from observed rounds
+  const minAcceptance = Math.min(...roundAdoptionRates);
+  const maxAcceptance = Math.max(...roundAdoptionRates);
+
+  // Price spread derived from all observed evaluations across rounds
+  const allPrices = allEvaluations.map((e) => e.acceptablePrice).sort((a, b) => a - b);
+  const minPrice = allPrices[0] ?? holdOutVerdict.priceRange.min;
+  const maxPrice = allPrices[allPrices.length - 1] ?? holdOutVerdict.priceRange.max;
+  const midIndex = Math.floor(allPrices.length / 2);
+  const medianPrice =
+    allPrices.length % 2 !== 0
+      ? allPrices[midIndex]
+      : Math.round(((allPrices[midIndex - 1] ?? minPrice) + (allPrices[midIndex] ?? maxPrice)) / 2);
+
+  // Calculate objection resolution using semantic conceptual matcher
+  const initialObjections = initialVerdict.topObjections.map((o) => o.objection);
+  const holdoutObjections = holdOutVerdict.topObjections.map((o) => o.objection);
+  const resolutionResult = computeResolvedObjections(initialObjections, holdoutObjections);
 
   const initialPaidRate = initialVerdict.paidAcceptanceRate ?? initialVerdict.acceptanceRate;
   const holdOutPaidRate = holdOutVerdict.paidAcceptanceRate ?? holdOutVerdict.acceptanceRate;
   const deltaPaidPct = Math.round((holdOutPaidRate - initialPaidRate) * 100);
   const deltaOverallPct = Math.round((holdOutVerdict.acceptanceRate - initialVerdict.acceptanceRate) * 100);
 
-  const deltaSummary = `Hold-Out panel paid commercial adoption shifted by ${deltaPaidPct >= 0 ? '+' : ''}${deltaPaidPct}% (overall adoption shift: ${deltaOverallPct >= 0 ? '+' : ''}${deltaOverallPct}%, from ${(initialPaidRate * 100).toFixed(0)}% to ${(holdOutPaidRate * 100).toFixed(0)}%). Resolved ${resolvedCount} of ${initialVerdict.topObjections.length} fatal objections against blinded Cohort B.`;
+  const deltaSummary = `Hold-Out panel paid commercial adoption shifted by ${deltaPaidPct >= 0 ? '+' : ''}${deltaPaidPct}% (overall adoption shift: ${deltaOverallPct >= 0 ? '+' : ''}${deltaOverallPct}%, from ${(initialPaidRate * 100).toFixed(0)}% to ${(holdOutPaidRate * 100).toFixed(0)}%). Across 3 empirical trials, adoption range was [${Math.round(minAcceptance * 100)}% – ${Math.round(maxAcceptance * 100)}%]. Semantically resolved ${resolutionResult.resolvedCount} of ${resolutionResult.totalInitial} initial fatal objections against blinded Cohort B.`;
 
   return {
     holdOutPersonas,
-    holdOutEvaluations,
+    holdOutEvaluations: primaryEvaluations,
     holdOutVerdict,
     initialAcceptanceRate: initialVerdict.acceptanceRate,
     holdOutAcceptanceRate: holdOutVerdict.acceptanceRate,
@@ -113,18 +138,18 @@ export async function executeHoldOutRetest(
     initialMedianPrice: initialVerdict.priceRange.median,
     holdOutMedianPrice: medianPrice,
     acceptanceRateSpread: {
-      min: minAcceptance,
+      min: Number(minAcceptance.toFixed(2)),
       median: holdOutVerdict.acceptanceRate,
-      max: maxAcceptance,
+      max: Number(maxAcceptance.toFixed(2)),
     },
     priceSpread: {
       min: minPrice,
       median: medianPrice,
       max: maxPrice,
     },
-    resolvedObjectionsCount: resolvedCount,
-    totalInitialObjections: initialVerdict.topObjections.length,
-    isHoldOutVerified: holdOutPersonas.every((p) => !initialIds.has(p.id)),
+    resolvedObjectionsCount: resolutionResult.resolvedCount,
+    totalInitialObjections: resolutionResult.totalInitial,
+    isHoldOutVerified: holdOutPersonas.every((p) => !initialIds.has(p.id)) && holdOutPersonas.length === initialPersonas.length,
     deltaSummary,
   };
 }

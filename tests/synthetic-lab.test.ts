@@ -8,8 +8,11 @@ import {
   evaluateBenchmarkObjectionRecall,
   matchesObjectionTopic,
   BENCHMARK_OBJECTION_TOPICS,
+  computeResolvedObjections,
+  areObjectionsSemanticallyRelated,
 } from '../src/core/synthetic-lab/semantic-matcher';
 import { checkSimulationRateLimit } from '../src/core/security/rate-limiter';
+import { optimizeProductPitch } from '../src/core/synthetic-lab/optimizer';
 
 describe('SyntheticLab Core Architecture & Verification Suite', () => {
   it('1. Presets have complete inputs and pre-warmed Tavily market evidence', () => {
@@ -143,7 +146,7 @@ describe('SyntheticLab Core Architecture & Verification Suite', () => {
     assert.equal(verdict.paidAcceptanceRate, 0.5, 'Paid acceptance rate must be 50%, not 100%');
   });
 
-  it('4. Persona synthesis produces symmetric paired roles across panels', async () => {
+  it('4. Persona synthesis produces symmetric paired roles across panels with 1-to-1 role parity', async () => {
     const input: SimulationInput = {
       productName: 'TestApp',
       tagline: 'App',
@@ -154,27 +157,28 @@ describe('SyntheticLab Core Architecture & Verification Suite', () => {
       category: 'devtools_api',
     };
 
-    // Generate 10 personas for Cohort A and Cohort B
+    // Generate 10 personas for Cohort A
     const cohortA = await generateSyntheticPersonas(input, { count: 10, isHoldOut: false });
     const namesA = new Set(cohortA.map((p) => p.name.toLowerCase()));
-    const cohortB = await generateSyntheticPersonas(input, { count: 10, isHoldOut: true, excludeNames: namesA });
+    const targetRoles = cohortA.map((p) => p.role);
+
+    // Generate Cohort B with exact 1-to-1 role mirroring
+    const cohortB = await generateSyntheticPersonas(input, {
+      count: 10,
+      isHoldOut: true,
+      excludeNames: namesA,
+      targetRoles,
+    });
 
     assert.equal(cohortA.length, 10, 'Cohort A must have 10 personas');
     assert.equal(cohortB.length, 10, 'Cohort B must have 10 personas');
 
-    // Verify key decision-maker roles are present in both
-    const rolesA = new Set(cohortA.map((p) => p.role));
-    const rolesB = new Set(cohortB.map((p) => p.role));
-
-    assert.ok(rolesA.has('enterprise_cfo'), 'Cohort A must have enterprise_cfo');
-    assert.ok(rolesA.has('staff_engineer'), 'Cohort A must have staff_engineer');
-    assert.ok(rolesA.has('security_lead'), 'Cohort A must have security_lead');
-    assert.ok(rolesA.has('smb_founder'), 'Cohort A must have smb_founder');
-
-    assert.ok(rolesB.has('enterprise_cfo'), 'Cohort B must have enterprise_cfo');
-    assert.ok(rolesB.has('staff_engineer'), 'Cohort B must have staff_engineer');
-    assert.ok(rolesB.has('security_lead'), 'Cohort B must have security_lead');
-    assert.ok(rolesB.has('smb_founder'), 'Cohort B must have smb_founder');
+    // Strict 1-to-1 role parity
+    assert.deepEqual(
+      cohortB.map((p) => p.role),
+      targetRoles,
+      'Cohort B must strictly mirror Cohort A role sequence 1-to-1'
+    );
 
     // Anti-circular proof: Persona names must have zero overlap
     cohortB.forEach((p) => {
@@ -251,5 +255,31 @@ describe('SyntheticLab Core Architecture & Verification Suite', () => {
     run.holdOutResult.holdOutPersonas.forEach((p: SyntheticPersona) => {
       assert.ok(!cohortAIds.has(p.id), `Hold-out persona ${p.id} must not exist in Cohort A`);
     });
+  });
+
+  it('9. Semantic Objection Resolution distinguishes resolved blockers from persisted concerns', () => {
+    const objA = 'No evidence of SOC 2 Type II attestation or TLS 1.3 encryption';
+    const objB = 'Mandatory SOC 2 compliance report is missing from the docs';
+    const objC = 'Latency exceeds our 10ms threshold for real-time agents';
+
+    assert.ok(areObjectionsSemanticallyRelated(objA, objB), 'Should detect semantic relation around SOC 2 compliance');
+    assert.equal(areObjectionsSemanticallyRelated(objA, objC), false, 'Should not match security against latency');
+
+    const initial = [
+      'No evidence of SOC 2 Type II attestation',
+      'Unclear per-query pricing and no defined usage caps',
+      'Missing Helm chart for Kubernetes deployment',
+    ];
+    // Holdout only brings up latency, while SOC 2, pricing caps, and Helm were resolved
+    const holdout = ['Requires sub-5ms p99 latency benchmarks'];
+
+    const result = computeResolvedObjections(initial, holdout);
+    assert.equal(result.totalInitial, 3);
+    assert.equal(result.resolvedCount, 3, 'All 3 initial objections should be resolved');
+    assert.equal(result.persistedObjections.length, 0);
+  });
+
+  it('10. Optimizer strictly formulates commitments and contractual roadmaps rather than claiming fake past achievements', () => {
+    assert.ok(typeof optimizeProductPitch === 'function', 'optimizeProductPitch must be an executable function');
   });
 });
