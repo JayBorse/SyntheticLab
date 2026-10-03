@@ -403,6 +403,7 @@ export default function SyntheticLabPage() {
           verdict,
           evidence,
           initialPersonas: personas,
+          personas,
         }),
         signal: retestAbortControllerRef.current.signal,
       });

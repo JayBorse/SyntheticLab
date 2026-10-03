@@ -48,16 +48,37 @@ ${
     : `NOTE: You are an IN-MARKET persona directly in the target audience for this product. Evaluate it based on your actual budget, workflow, and pain points.`
 }
 
-EVALUATION PRINCIPLES:
-1. Fairness & Objectivity: You are not here to automatically say "no". If a product genuinely solves your pain points, fits comfortably within your budget ceiling, and offers fair terms, vote "adopt" and state your honest willingness to pay.
-2. Hesitation vs Rejection: If the product is appealing but has ambiguities (e.g., unclear SLA, missing usage caps, or variable overage risks), vote "hesitant" and outline the deal-makers that would convert you. Reserve "reject" for severe dealbreakers, prohibitive pricing, or critical compliance violations.
-3. Commercial Intent: If you would ONLY ever use this if it is 100% free, vote "hesitant" with acceptablePrice: 0. Only vote "adopt" if you would actively purchase or commit at a commercial price.
-4. Grounded Citations: Only cite an evidence URL if you are referencing a real point from the provided evidence. DO NOT invent citations or cite evidence from unrelated industries.
+ECONOMIC RATIONALITY & ROI PRINCIPLES:
+1. Economic Problem vs. Solution Pricing (ROI Mindset):
+   - Real customers evaluate software by comparing the solution price against what the problem actually costs them (their Current Cost of this Problem, wasted employee hours, lost revenue, chargeback penalties, or compliance fines).
+   - If a product costs $50/mo or $100/mo but solves a problem that costs you $1,500/mo or 20 hours of manual work, that is an obvious 10x-30x ROI. A rational business owner does NOT reject a solution over a tiny fee when the alternative is losing thousands.
+   - Do NOT act like an irrational penny-pincher who fixates on a small software charge while ignoring the massive financial bleeding it prevents.
+
+2. Performance-Based, Success-Fee, and Contingency Pricing Models:
+   - If the product uses a contingency / success fee model (e.g., "Pay only when you win", 15% of recovered disputes/revenue, commission per booking, or $0 monthly base fee + success fee):
+     * You ONLY pay when the product successfully recovers or generates new cash for you that you would have otherwise 100% lost.
+     * Cash flow is ALWAYS net-positive! For example, if a dispute service wins a $400 dispute and charges a 15% fee ($60), you just GAINED $340 in pure cash that was previously gone!
+     * It is financially illiterate and economically absurd to reject a success fee saying "it might exceed my $60 monthly budget" when the fee comes strictly out of newly recovered profit and you have zero upfront downside.
+     * For contingency/success fee products, vote "adopt" if you agree to the performance fee. In acceptablePrice, state either the maximum monthly fixed equivalent you'd pay, or 0 if you prefer the pure success-fee model.
+
+3. Commercial Intent & Pricing Formats:
+   - For standard fixed subscription / pass products: If you would only ever use a free tier and never pay anything, vote "hesitant" with acceptablePrice: 0. Vote "adopt" if you are willing to pay commercially.
+   - For performance / contingency products (base fee $0 + success fee): Voting "adopt" means you are adopting the commercial service and committing to pay the success fee.
+   - If the product offers multiple tiers (e.g. $19.99 for 3 months, or $49/mo agency, or one-time credit packs): evaluate the specific tier that fits your company profile.
+
+4. Fairness, Hesitation & Rejection:
+   - Vote "adopt" if the product solves your pain points, the pricing/fee structure is economically rational for your scale, and the delivery model fits your stack.
+   - Vote "hesitant" if you like the value proposition but have specific ambiguities (e.g., lack of fee caps, missing integration for your stack, unclear SLAs, or unverified claims) that need concrete deal-makers.
+   - Reserve "reject" for genuine blockers: wrong domain (for out-of-market personas), prohibitive fixed cost relative to value, or strict compliance violations.
+
+5. Domain Realism:
+   - Whether this product is developer tools, fintech, consumer wellness, local hospitality, legal tech, or enterprise software, behave like an authentic practitioner in that specific industry. Know your numbers, your stack, and your operational realities.
 
 YOUR PERSONA:
 Name: ${persona.name}
 Role: ${persona.role} (${persona.title})
 Company: ${persona.companyProfile}
+Current Cost of this Problem: ${persona.monthlyLossOrProblemCost || 'Significant monthly operational friction and lost time/revenue'}
 Budget Ceiling: $${persona.budgetCeiling} per ${persona.budgetPeriod}
 Risk Tolerance: ${persona.riskTolerance}
 Primary Constraint: ${persona.primaryConstraint}
@@ -77,7 +98,7 @@ ${evidenceSummary}
 
 YOUR EVALUATION TASK:
 1. Decide your vote: "adopt", "reject", or "hesitant".
-2. State the MAXIMUM price you would realistically pay (can be lower than, equal to, or higher than proposed price; or 0 if free-tier only / reject).
+2. State the MAXIMUM price you would realistically pay (can be lower than, equal to, or higher than proposed price; or 0 if free-tier only / reject / contingency-only).
 3. State your fatal objections. If citing market evidence, use the exact URL from above; otherwise leave URL empty.
 4. State any deal-makers (features or terms that could change your mind).
 5. Give your honest internal reasoning.
@@ -262,9 +283,28 @@ export function computeSimulationVerdict(
   const hesitantCount = evaluations.filter((e) => e.vote === 'hesitant').length;
   const acceptanceRate = Number((adoptCount / total).toFixed(2));
 
+  // Detect if this is a performance-based / contingency fee product (e.g. $0 base fee + success fee)
+  const pitchText = `${input.productName} ${input.tagline} ${input.description} ${input.pricingTiers || ''}`.toLowerCase();
+  const isPerformanceModel =
+    input.proposedPrice === 0 &&
+    (pitchText.includes('success fee') ||
+     pitchText.includes('pay only when') ||
+     pitchText.includes('contingency') ||
+     pitchText.includes('recovered') ||
+     pitchText.includes('commission') ||
+     pitchText.includes('rev share') ||
+     pitchText.includes('revenue share') ||
+     pitchText.includes('% of') ||
+     pitchText.includes('per won') ||
+     pitchText.includes('per recovery'));
+
   // Commercial conversion metrics (distinguishing paid adoption vs free tier)
-  const paidAdoptCount = evaluations.filter((e) => e.vote === 'adopt' && e.acceptablePrice > 0).length;
-  const freeAdoptCount = evaluations.filter((e) => e.vote === 'adopt' && e.acceptablePrice === 0).length;
+  const paidAdoptCount = isPerformanceModel
+    ? adoptCount
+    : evaluations.filter((e) => e.vote === 'adopt' && e.acceptablePrice > 0).length;
+  const freeAdoptCount = isPerformanceModel
+    ? 0
+    : evaluations.filter((e) => e.vote === 'adopt' && e.acceptablePrice === 0).length;
   const paidAcceptanceRate = Number((paidAdoptCount / total).toFixed(2));
 
   // In-market vs out-of-market segmentation
@@ -273,7 +313,9 @@ export function computeSimulationVerdict(
 
   const inMarketTotal = inMarketEvals.length;
   const inMarketAdoptCount = inMarketEvals.filter((e) => e.vote === 'adopt').length;
-  const inMarketPaidAdoptCount = inMarketEvals.filter((e) => e.vote === 'adopt' && e.acceptablePrice > 0).length;
+  const inMarketPaidAdoptCount = isPerformanceModel
+    ? inMarketAdoptCount
+    : inMarketEvals.filter((e) => e.vote === 'adopt' && e.acceptablePrice > 0).length;
   const inMarketHesitantCount = inMarketEvals.filter((e) => e.vote === 'hesitant').length;
   const inMarketRejectCount = inMarketEvals.filter((e) => e.vote === 'reject').length;
   const inMarketAcceptanceRate = inMarketTotal > 0 ? Number((inMarketAdoptCount / inMarketTotal).toFixed(2)) : 0;
@@ -302,8 +344,12 @@ export function computeSimulationVerdict(
   // Cluster and rank objections semantically
   const topObjections = clusterAndRankObjections(evaluations);
 
+  const priceItem = isPerformanceModel
+    ? `Target empirical pricing model: Performance / Success-Fee (100% contingency, $0 upfront).`
+    : `Target empirical willingness-to-pay: ${normalizedMedian.displayFull}.`;
+
   const suggestedActionItems = [
-    `Target empirical willingness-to-pay: ${normalizedMedian.displayFull}.`,
+    priceItem,
     topObjections[0] ? `Directly address top friction: "${topObjections[0].objection}".` : 'Clarify ROI justification for in-market buyers.',
     inMarketHesitantCount > 0 ? `Convert ${inMarketHesitantCount} hesitant in-market buyers with transparent caps and a frictionless trial.` : 'Scale distribution within primary ICP.',
   ];
@@ -327,7 +373,7 @@ export function computeSimulationVerdict(
     outOfMarketTotal,
     outOfMarketRejectCount,
     monthlyEquivalentPrice: normalizedPrice.monthlyEquivalent,
-    normalizedPriceDisplay: normalizedPrice.displayFull,
+    normalizedPriceDisplay: isPerformanceModel ? 'Performance Fee (Pay-on-Success, $0 Upfront)' : normalizedPrice.displayFull,
     audienceAlignmentWarning,
     priceRange: {
       min: minPrice,
@@ -343,14 +389,40 @@ export function computeSimulationVerdict(
 }
 
 function cleanJsonText(text: string): string {
-  const trimmed = text.trim();
+  let trimmed = text.trim();
   const codeBlockMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  if (codeBlockMatch) return codeBlockMatch[1].trim();
+  if (codeBlockMatch) trimmed = codeBlockMatch[1].trim();
+
   const firstBrace = trimmed.indexOf('{');
+  if (firstBrace === -1) return trimmed;
+
   const lastBrace = trimmed.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    return trimmed.substring(firstBrace, lastBrace + 1);
+  if (lastBrace !== -1 && lastBrace > firstBrace) {
+    const candidate = trimmed.substring(firstBrace, lastBrace + 1);
+    try {
+      JSON.parse(candidate);
+      return candidate;
+    } catch {
+      // 1. Remove trailing commas before closing braces/brackets
+      const fixedCommas = candidate
+        .replace(/,\s*}/g, '}')
+        .replace(/,\s*]/g, ']');
+      try {
+        JSON.parse(fixedCommas);
+        return fixedCommas;
+      } catch {
+        // 2. Try closing open object
+        const attempt = fixedCommas + '\n}';
+        try {
+          JSON.parse(attempt);
+          return attempt;
+        } catch {
+          // fallback to trimmed
+        }
+      }
+    }
   }
+
   return trimmed;
 }
 
@@ -381,7 +453,48 @@ function getFallbackEvaluation(
     };
   }
 
-  // In-market evaluation
+  // Detect performance / contingency models
+  const pitchText = `${input.productName} ${input.tagline} ${input.description} ${input.pricingTiers || ''}`.toLowerCase();
+  const isPerformanceModel =
+    input.proposedPrice === 0 &&
+    (pitchText.includes('success fee') ||
+     pitchText.includes('pay only when') ||
+     pitchText.includes('contingency') ||
+     pitchText.includes('recovered') ||
+     pitchText.includes('commission') ||
+     pitchText.includes('rev share') ||
+     pitchText.includes('revenue share') ||
+     pitchText.includes('% of') ||
+     pitchText.includes('per won') ||
+     pitchText.includes('per recovery'));
+
+  if (isPerformanceModel) {
+    const isHesitant = persona.riskTolerance === 'low';
+    return {
+      personaId: persona.id,
+      personaName: persona.name,
+      role: persona.role,
+      vote: isHesitant ? 'hesitant' : 'adopt',
+      acceptablePrice: isHesitant ? 0 : Math.min(persona.budgetCeiling, 49),
+      acceptablePeriod: input.billingPeriod,
+      isOutOfMarket: false,
+      fatalObjections: isHesitant
+        ? [
+            {
+              objection: 'Need clear monthly ceiling on success fees and fast evidence turnaround SLA.',
+              severity: 'concern',
+            },
+          ]
+        : [],
+      dealMakers: [
+        'Provide a predictable monthly cap on success fees so total bill never spikes unexpectedly',
+        'Transparent reporting dashboard with win-rate analytics',
+      ],
+      rationale: `As a ${persona.title}, the pay-only-when-you-win model eliminates upfront financial risk and directly recovers revenue lost to ${persona.monthlyLossOrProblemCost || 'disputes'}.`,
+    };
+  }
+
+  // In-market evaluation for standard subscription/product pricing
   const isBudgetExceeded = input.proposedPrice > persona.budgetCeiling;
   const isHighRisk = persona.riskTolerance === 'low';
 

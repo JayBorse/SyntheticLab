@@ -33,7 +33,7 @@ Roles to mirror:
 ${targetRoles.map((r, i) => `Persona #${i + 1}: ${r}${mirrorPersonas && mirrorPersonas[i]?.isOutOfMarket ? ' [OUT_OF_MARKET STRESS TEST]' : ' [IN_MARKET ICP]'}`).join('\n')}
 Generate fresh individual names, companies, and perspectives matching this exact sequence.`;
   } else {
-    roleInstruction = `AUDIENCE COMPOSITION REQUIREMENT:
+    roleInstruction = `AUDIENCE COMPOSITION & ECONOMIC REALISM REQUIREMENTS:
 1. FIRST, extract the product's true Ideal Customer Profile (ICP) from:
    - Target Audience: "${input.targetAudience}"
    - Product: "${input.productName}" — ${input.tagline}
@@ -42,12 +42,23 @@ Generate fresh individual names, companies, and perspectives matching this exact
 
 2. Generate ${count} personas based directly on this ICP:
    - Exactly ${Math.max(1, count - 2)} personas MUST be genuine IN-MARKET buyers directly matching the extracted ICP.
-     (e.g., for indie developer tools: solo iOS devs, boutique app studio founders, freelance mobile engineers, bootstrapped app publishers; for consumer apps: daily subscribers, cost-conscious users, fitness enthusiasts; for local SMBs: restaurant owners, shop managers).
+     (e.g., for e-commerce / payments: Shopify founders, e-com ops managers, DTC heads of growth, finance leads, subscription brand owners; for indie devtools: solo iOS devs, boutique app studio founders; for consumer apps: daily subscribers; for local SMBs: restaurant owners, shop operators).
      Set "isOutOfMarket": false.
    - At most 2 personas MUST be OUT-OF-MARKET stress-test personas who might encounter this pitch unexpectedly (e.g. enterprise procurement director, HIPAA SecOps auditor, corporate controller).
      Set "isOutOfMarket": true.
 
-3. DO NOT use a hardcoded role list. Give each persona an authentic title and role fitting their context (e.g. 'indie_developer', 'studio_founder', 'solo_creator', 'app_publisher', 'procurement_director').`;
+3. ECONOMIC SCALE & BUDGET REALISM:
+   - Calculate realistic company revenue (MRR/ARR or annual GMV) and team scale appropriate to the ICP.
+   - For EVERY persona, estimate their "monthlyLossOrProblemCost":
+     What does this specific problem currently cost them each month in dollars, lost revenue, chargeback fees, or wasted labor hours? (e.g. "$1,500/mo in lost chargeback disputes + $25 processor fees", "$3,500/mo in engineering preflight auditing time", "$15,000 potential App Store rejection delay", "$600/mo in guest no-shows").
+   - Set "budgetCeiling" realistically and proportionally:
+     * For B2B/SMB software that solves a costly problem: budget ceiling MUST be proportionally rational (typically 10%–30% of their monthlyLossOrProblemCost). If losing $1,500/mo to chargebacks, a budget ceiling of $200–$450/month is rational, NEVER an arbitrary tiny number like $30 or $60!
+     * For contingency / performance / success-fee models ($0 upfront + % cut of recovered money): budget ceiling represents acceptable monthly threshold if high volume is recovered, but remember contingency fees come from won funds!
+     * For Indie dev tools: $20–$100/mo or $50–$300/quarter.
+     * For Consumer apps: $5–$25/mo or $30–$100/year.
+     * For Enterprise: $2,000–$25,000+/mo.
+
+4. DO NOT use a hardcoded role list. Give each persona an authentic title and role fitting their context (e.g. 'ecommerce_founder', 'ops_manager', 'indie_developer', 'studio_founder', 'procurement_director').`;
   }
 
   const prompt = `You are a Principal Market Researcher and Organizational Sociologist.
@@ -70,16 +81,17 @@ You MUST return a JSON object with a "personas" key containing an array of ${cou
 {
   "personas": [
     {
-      "name": "Alex Mercer",
-      "role": "indie_developer",
-      "title": "Solo iOS App Developer",
-      "companyProfile": "Self-funded studio with 2 lifestyle iOS apps ($8k MRR)",
-      "budgetCeiling": 30,
+      "name": "Jordan Lee",
+      "role": "ecommerce_founder",
+      "title": "Founder & CEO, DTC Apparel",
+      "companyProfile": "Shopify store selling accessories ($50k MRR, ~180 orders/day)",
+      "monthlyLossOrProblemCost": "$1,400/mo in lost chargebacks + $300 in bank dispute penalty fees",
+      "budgetCeiling": 350,
       "budgetPeriod": "${input.billingPeriod}",
       "riskTolerance": "medium",
-      "primaryConstraint": "Cash-conscious; seeks immediate launch speed and no recurring overage traps",
-      "existingStack": ["SwiftUI", "Xcode", "TestFlight", "RevenueCat"],
-      "evaluationCriteria": ["Low upfront cost", "Fast preflight audits", "Zero lock-in"],
+      "primaryConstraint": "No dedicated dispute team; founder wastes hours manually gathering evidence",
+      "existingStack": ["Shopify", "Stripe", "Klaviyo", "ShipStation"],
+      "evaluationCriteria": ["Pay-only-when-you-win", "Automated evidence gathering", "Net-positive cash recovery"],
       "isOutOfMarket": false
     }
   ]
@@ -121,17 +133,22 @@ Return ONLY valid JSON.`;
           ? Boolean(mirrorPersonas[idx].isOutOfMarket)
           : (typeof p.isOutOfMarket === 'boolean' ? p.isOutOfMarket : idx >= count - 2);
 
+        const defaultBudget = isOutOfMarket
+          ? 5000
+          : (input.proposedPrice > 0 ? Math.round(input.proposedPrice * 1.5) : 350);
+
         return {
           id: `persona_${isHoldOut ? 'holdout_' : ''}${Date.now()}_${idx}`,
           name,
           role: assignedRole,
           title: p.title || 'Technical Decision Maker',
           companyProfile: p.companyProfile || 'Growth Venture',
-          budgetCeiling: typeof p.budgetCeiling === 'number' ? p.budgetCeiling : Math.round(input.proposedPrice * (isOutOfMarket ? 2.5 : 1.2)),
+          monthlyLossOrProblemCost: p.monthlyLossOrProblemCost || 'Significant monthly operational friction and lost time/revenue',
+          budgetCeiling: typeof p.budgetCeiling === 'number' && p.budgetCeiling > 0 ? p.budgetCeiling : defaultBudget,
           budgetPeriod: input.billingPeriod,
           riskTolerance: p.riskTolerance || (idx % 2 === 0 ? 'low' : 'medium'),
           primaryConstraint: p.primaryConstraint || 'Budget and workflow compatibility requirements',
-          existingStack: Array.isArray(p.existingStack) && p.existingStack.length > 0 ? p.existingStack : ['Development Tools'],
+          existingStack: Array.isArray(p.existingStack) && p.existingStack.length > 0 ? p.existingStack : ['Standard Stack'],
           evaluationCriteria: Array.isArray(p.evaluationCriteria) && p.evaluationCriteria.length > 0 ? p.evaluationCriteria : ['Value', 'Reliability'],
           isHoldOut,
           isOutOfMarket,
@@ -158,14 +175,46 @@ Return ONLY valid JSON.`;
 }
 
 function cleanJsonText(text: string): string {
-  const trimmed = text.trim();
+  let trimmed = text.trim();
   const codeBlockMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  if (codeBlockMatch) return codeBlockMatch[1].trim();
+  if (codeBlockMatch) trimmed = codeBlockMatch[1].trim();
+
   const firstBrace = trimmed.indexOf('{');
+  if (firstBrace === -1) return trimmed;
+
   const lastBrace = trimmed.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    return trimmed.substring(firstBrace, lastBrace + 1);
+  if (lastBrace !== -1 && lastBrace > firstBrace) {
+    const candidate = trimmed.substring(firstBrace, lastBrace + 1);
+    try {
+      JSON.parse(candidate);
+      return candidate;
+    } catch {
+      // 1. Remove trailing commas before closing braces/brackets
+      const fixedCommas = candidate
+        .replace(/,\s*}/g, '}')
+        .replace(/,\s*]/g, ']');
+      try {
+        JSON.parse(fixedCommas);
+        return fixedCommas;
+      } catch {
+        // 2. If truncated inside an array, iteratively find the last valid completed object
+        let searchIndex = lastBrace;
+        while (searchIndex > firstBrace) {
+          const prevBrace = trimmed.lastIndexOf('}', searchIndex - 1);
+          if (prevBrace <= firstBrace) break;
+          const attempt = trimmed.substring(firstBrace, prevBrace + 1)
+            .replace(/,\s*}/g, '}') + '\n  ]\n}';
+          try {
+            JSON.parse(attempt);
+            return attempt;
+          } catch {
+            searchIndex = prevBrace;
+          }
+        }
+      }
+    }
   }
+
   return trimmed;
 }
 
@@ -363,7 +412,195 @@ function getCalibratedFallbackPersonas(
       },
     ];
   }
-  // B. Consumer / Wellness / Subscription App Archetypes
+  // B. E-Commerce / Merchant / Payments / Fraud & Disputes (DisputeVantage, etc.)
+  else if (
+    combinedText.includes('dispute') ||
+    combinedText.includes('chargeback') ||
+    combinedText.includes('ecommerce') ||
+    combinedText.includes('e-commerce') ||
+    combinedText.includes('shopify') ||
+    combinedText.includes('stripe') ||
+    combinedText.includes('merchant') ||
+    combinedText.includes('fraud') ||
+    combinedText.includes('checkout') ||
+    combinedText.includes('cart') ||
+    combinedText.includes('payment')
+  ) {
+    archetypes = [
+      {
+        id: `p_ecom1_${Date.now()}`,
+        name: isHoldOut ? 'Marcus Sterling' : 'Jordan Lee',
+        role: 'ecommerce_founders',
+        title: 'Founder & CEO, DTC Apparel',
+        companyProfile: 'Shopify brand ($45k MRR, ~150 orders/day, Stripe payments)',
+        monthlyLossOrProblemCost: '$1,200/mo in lost chargeback disputes + $25/dispute penalty fees',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 1.5) : 350, 300),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'medium',
+        primaryConstraint: 'No dedicated dispute team; founder wastes hours manually gathering evidence and tracking delivery slips.',
+        existingStack: ['Shopify', 'Stripe', 'Klaviyo', 'ShipStation'],
+        evaluationCriteria: ['Pay-only-when-you-win', 'Automated evidence gathering', 'Net-positive cash recovery', 'Zero upfront fee'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_ecom2_${Date.now()}`,
+        name: isHoldOut ? 'Ananya Sen' : 'Priya Mehta',
+        role: 'ops_manager',
+        title: 'Operations & Fulfillment Manager',
+        companyProfile: 'Shopify Plus electronics store ($80k MRR, 5 staff)',
+        monthlyLossOrProblemCost: '$2,400/mo in chargebacks and friendly fraud',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 2.0) : 500, 450),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'low',
+        primaryConstraint: 'High order volume strains finance team; needs automated response submission before 7-day deadlines.',
+        existingStack: ['Shopify Plus', 'Stripe', 'NetSuite', 'Returnly', 'Slack'],
+        evaluationCriteria: ['Automated evidence generation', 'Card network rule compliance', 'Success-based pricing', 'Scalability'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_ecom3_${Date.now()}`,
+        name: isHoldOut ? 'Mateo Silva' : 'Luis Ortega',
+        role: 'finance_lead',
+        title: 'Finance & Bookkeeping Lead',
+        companyProfile: 'WooCommerce home goods boutique ($30k MRR)',
+        monthlyLossOrProblemCost: '$900/mo in unrecovered chargebacks',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 1.2) : 250, 200),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'medium',
+        primaryConstraint: 'Strict ROI focus: loves success-fee models where fees are funded directly from won recoveries with zero upfront risk.',
+        existingStack: ['WooCommerce', 'Stripe', 'QuickBooks Online', 'ShipBob'],
+        evaluationCriteria: ['Zero upfront subscription', 'Pay-per-recovery', 'Transparent reporting', 'Minimal IT setup'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_ecom4_${Date.now()}`,
+        name: isHoldOut ? 'Jessica Wu' : 'Emily Chen',
+        role: 'growth_head',
+        title: 'Head of Growth & Retention',
+        companyProfile: 'DTC beauty brand ($70k MRR, Recharge subscriptions)',
+        monthlyLossOrProblemCost: '$1,800/mo in subscription chargebacks eroding ad ROAS',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 1.8) : 400, 350),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'high',
+        primaryConstraint: 'Chargeback spikes hurt payment processor trust; needs pre-dispute alerts and fast evidence defense.',
+        existingStack: ['Shopify', 'Stripe', 'Recharge', 'Klaviyo', 'Facebook Ads'],
+        evaluationCriteria: ['Pay-only-when-win', 'Fast implementation', 'Refund threshold control', 'No monthly overhead'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_ecom5_${Date.now()}`,
+        name: isHoldOut ? 'Vikram Nair' : 'Samir Patel',
+        role: 'store_owner',
+        title: 'Solo Founder & Store Owner',
+        companyProfile: 'Niche gadgets brand on Shopify ($25k MRR, fulfills via ShipStation)',
+        monthlyLossOrProblemCost: '$750/mo in lost merchandise & dispute penalties',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 1.0) : 200, 150),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'low',
+        primaryConstraint: 'Time spent disputing chargebacks steals hours from product development; needs hands-off automation.',
+        existingStack: ['Shopify', 'Stripe', 'ShipStation', 'Google Sheets'],
+        evaluationCriteria: ['Zero monthly fee', 'Automatic evidence gathering', 'Clear fee cap', 'Set-and-forget'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_ecom6_${Date.now()}`,
+        name: isHoldOut ? 'Claire Danvers' : 'Natalie Brooks',
+        role: 'coo',
+        title: 'Chief Operating Officer',
+        companyProfile: 'Omnichannel retailer ($90k MRR across Shopify, Amazon, own site)',
+        monthlyLossOrProblemCost: '$3,200/mo in cross-channel dispute leakage',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 2.5) : 600, 500),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'medium',
+        primaryConstraint: 'Disputes across channels create reconciliation headaches; needs unified defense dashboard.',
+        existingStack: ['Shopify', 'Stripe', 'Amazon Pay', 'QuickBooks', 'Slack'],
+        evaluationCriteria: ['Centralized dispute handling', 'Success-based cost', 'Audit trail', 'Zero extra headcount needed'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_ecom7_${Date.now()}`,
+        name: isHoldOut ? 'Arman Qureshi' : 'Ravi Singh',
+        role: 'subscription_founders',
+        title: 'Founder & CEO, Subscription Box',
+        companyProfile: 'Curated subscription box ($55k MRR, Recharge billing)',
+        monthlyLossOrProblemCost: '$1,500/mo in recurring billing disputes',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 1.5) : 350, 300),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'medium',
+        primaryConstraint: 'Recurring billing disputes hurt gateway standing; needs automated proof of recurring subscription terms.',
+        existingStack: ['Shopify', 'Stripe', 'Recharge', 'Klaviyo', 'ShipBob'],
+        evaluationCriteria: ['Pay-only-when-win', 'Handles subscription disputes', 'Automated recurring evidence', 'Low overhead'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_ecom8_${Date.now()}`,
+        name: isHoldOut ? 'Brendan Cole' : 'Megan O\'Neil',
+        role: 'ecom_manager',
+        title: 'E-commerce & Store Manager',
+        companyProfile: 'Specialty food store on WooCommerce ($40k MRR)',
+        monthlyLossOrProblemCost: '$1,100/mo in delivery-related chargebacks',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 1.3) : 300, 250),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'low',
+        primaryConstraint: 'Perishable goods lead to shipping claims; needs fast evidence collection and auto-refund below threshold.',
+        existingStack: ['WooCommerce', 'Stripe', 'ShipStation', 'Mailchimp'],
+        evaluationCriteria: ['Fast carrier tracking evidence', 'Pay-per-success', 'Auto-refund threshold', 'WooCommerce integration'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      // 2 Out-of-Market Stress-Test Personas
+      {
+        id: `p_ecom9_out_${Date.now()}`,
+        name: isHoldOut ? 'Richard Sterling' : 'Daniel Ruiz',
+        role: 'procurement_director',
+        title: 'Director of Enterprise Payment Procurement',
+        companyProfile: 'Fortune 500 Retail Enterprise ($2B annual online GMV, SAP, Adyen)',
+        monthlyLossOrProblemCost: '$250,000/mo in fraud losses handled by 20-person internal risk team',
+        budgetCeiling: 10000,
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'low',
+        primaryConstraint: 'Out of domain: Requires enterprise SOC-2 Type II audit, dedicated support SLA, and direct SAP/Adyen integration for >1M orders/month.',
+        existingStack: ['SAP', 'Adyen', 'CyberSource', 'RSA Archer', 'ServiceNow'],
+        evaluationCriteria: ['SOC-2 Type II compliance', 'API scalability (>1M orders/mo)', 'Custom rules engine', 'Dedicated 24/7 SLA'],
+        isHoldOut,
+        isOutOfMarket: true,
+        audienceMatch: 'out_of_market',
+      },
+      {
+        id: `p_ecom10_out_${Date.now()}`,
+        name: isHoldOut ? 'Evelyn Vance' : 'Laura Kim',
+        role: 'corporate_controller',
+        title: 'Corporate Controller & Risk Officer',
+        companyProfile: 'Enterprise B2B SaaS ($20M ARR, NetSuite, corporate invoicing)',
+        monthlyLossOrProblemCost: 'Negligible B2C chargebacks; deals with corporate contract terms and wire reconciliation',
+        budgetCeiling: 3000,
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'medium',
+        primaryConstraint: 'Out of domain: We do not process high-volume B2C consumer chargebacks; we require NetSuite ERP automated invoice reconciliation.',
+        existingStack: ['NetSuite', 'Stripe B2B', 'Expensify', 'Avalara'],
+        evaluationCriteria: ['NetSuite ERP integration', 'Corporate card dispute workflows', 'Predictable flat monthly subscription', 'Audit trail'],
+        isHoldOut,
+        isOutOfMarket: true,
+        audienceMatch: 'out_of_market',
+      },
+    ];
+  }
+  // C. Consumer / Wellness / Subscription App Archetypes
   else if (
     combinedText.includes('consumer') ||
     combinedText.includes('b2c') ||
@@ -709,8 +946,21 @@ function getCalibratedFallbackPersonas(
       },
     ];
   }
-  // D. Default: B2B DevTools / Cloud Infrastructure (VectorStream, etc.)
-  else {
+  // E. B2B DevTools / Cloud Infrastructure (VectorStream, etc.)
+  else if (
+    combinedText.includes('api') ||
+    combinedText.includes('dev') ||
+    combinedText.includes('cloud') ||
+    combinedText.includes('vector') ||
+    combinedText.includes('database') ||
+    combinedText.includes('infra') ||
+    combinedText.includes('code') ||
+    combinedText.includes('software') ||
+    combinedText.includes('engineering') ||
+    combinedText.includes('backend') ||
+    combinedText.includes('sdk') ||
+    combinedText.includes('cli')
+  ) {
     archetypes = [
       {
         id: `p_dev1_${Date.now()}`,
@@ -718,7 +968,8 @@ function getCalibratedFallbackPersonas(
         role: 'engineering_cto',
         title: isHoldOut ? 'Chief Technology Officer' : 'VP of Engineering & Architecture',
         companyProfile: isHoldOut ? 'AI Agent Workflow Startup ($500k ARR)' : 'High-Growth AI Agent Startup ($2M ARR, 18 engineers)',
-        budgetCeiling: Math.round(input.proposedPrice * 1.5),
+        monthlyLossOrProblemCost: '$3,500/mo in engineering preflight auditing time and unexpected vector bill shock',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 1.5) : 500, 350),
         budgetPeriod: input.billingPeriod,
         riskTolerance: 'medium',
         primaryConstraint: 'Demands hard spend caps to avoid month-end vector bill shock like Pinecone.',
@@ -734,7 +985,8 @@ function getCalibratedFallbackPersonas(
         role: 'staff_engineer',
         title: isHoldOut ? 'Principal Systems Architect' : 'Staff Backend Engineer',
         companyProfile: isHoldOut ? 'High-Throughput Autonomous Agent Platform' : 'High-Scale AI Startup (Series A)',
-        budgetCeiling: Math.round(input.proposedPrice * 2.0),
+        monthlyLossOrProblemCost: '$5,000/mo in infrastructure latency bottlenecks and manual SDK maintenance',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 2.0) : 600, 450),
         budgetPeriod: input.billingPeriod,
         riskTolerance: 'high',
         primaryConstraint: 'Zero patience for high p99 latency or proprietary lock-in; needs open export.',
@@ -750,7 +1002,8 @@ function getCalibratedFallbackPersonas(
         role: 'smb_founder',
         title: isHoldOut ? 'Solo AI Product Builder' : 'Solo Founder & CEO',
         companyProfile: isHoldOut ? 'Self-funded Micro-SaaS ($20k MRR)' : 'Early-stage Micro-SaaS ($15k MRR, 2 team members)',
-        budgetCeiling: Math.round(input.proposedPrice * 0.9),
+        monthlyLossOrProblemCost: '$1,200/mo in cloud bill volatility',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 0.9) : 250, 150),
         budgetPeriod: input.billingPeriod,
         riskTolerance: 'medium',
         primaryConstraint: 'Extremely cash-sensitive; actively seeks clear usage caps and instant self-serve.',
@@ -766,7 +1019,8 @@ function getCalibratedFallbackPersonas(
         role: 'devops_lead',
         title: isHoldOut ? 'Lead Cloud Infrastructure Architect' : 'Lead Site Reliability Engineer',
         companyProfile: isHoldOut ? 'High-Volume Agent Execution Platform' : 'E-commerce Infrastructure Platform',
-        budgetCeiling: Math.round(input.proposedPrice * 1.6),
+        monthlyLossOrProblemCost: '$4,000/mo in downtime risk and on-call operational toil',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 1.6) : 550, 400),
         budgetPeriod: input.billingPeriod,
         riskTolerance: 'low',
         primaryConstraint: 'Refuses to introduce dependencies that require manual operational babysitting.',
@@ -782,7 +1036,8 @@ function getCalibratedFallbackPersonas(
         role: 'staff_engineer',
         title: isHoldOut ? 'Staff Distributed Systems Engineer' : 'Principal AI Systems Architect',
         companyProfile: isHoldOut ? 'Autonomous Agent Framework Lab' : 'Enterprise Search Platform',
-        budgetCeiling: Math.round(input.proposedPrice * 2.0),
+        monthlyLossOrProblemCost: '$6,000/mo in developer time spent profiling vector index bottlenecks',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 2.0) : 700, 500),
         budgetPeriod: input.billingPeriod,
         riskTolerance: 'high',
         primaryConstraint: 'Requires native TypeScript and Python SDKs with sub-10ms benchmark proof.',
@@ -798,7 +1053,8 @@ function getCalibratedFallbackPersonas(
         role: 'smb_founder',
         title: isHoldOut ? 'Founder & CEO, Agent Studio' : 'Co-founder & CTO, Seed Stage',
         companyProfile: isHoldOut ? 'AI Workflow Agency (6 people)' : 'Seed-Stage Agent Studio ($500k raised)',
-        budgetCeiling: Math.round(input.proposedPrice * 1.1),
+        monthlyLossOrProblemCost: '$1,800/mo in manual API stitching',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 1.1) : 350, 200),
         budgetPeriod: input.billingPeriod,
         riskTolerance: 'medium',
         primaryConstraint: 'Needs instant setup without waiting for enterprise sales demos.',
@@ -814,7 +1070,8 @@ function getCalibratedFallbackPersonas(
         role: 'devops_lead',
         title: isHoldOut ? 'Principal Cloud Infrastructure Engineer' : 'Staff SRE',
         companyProfile: isHoldOut ? 'High-Throughput Streaming Platform' : 'Cloud Native SaaS',
-        budgetCeiling: Math.round(input.proposedPrice * 1.8),
+        monthlyLossOrProblemCost: '$3,800/mo in infrastructure toil',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 1.8) : 600, 450),
         budgetPeriod: input.billingPeriod,
         riskTolerance: 'medium',
         primaryConstraint: 'Needs automated Terraform providers, zero manual provisioning, and clear p99 latency SLA.',
@@ -830,7 +1087,8 @@ function getCalibratedFallbackPersonas(
         role: 'engineering_manager',
         title: isHoldOut ? 'Engineering Manager, Core Platform' : 'Engineering Lead, Data Platform',
         companyProfile: isHoldOut ? 'Series A Agent Analytics' : 'B2B Analytics Platform',
-        budgetCeiling: Math.round(input.proposedPrice * 1.7),
+        monthlyLossOrProblemCost: '$4,200/mo in unpredictable third-party SaaS rate limits',
+        budgetCeiling: Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 1.7) : 550, 400),
         budgetPeriod: input.billingPeriod,
         riskTolerance: 'medium',
         primaryConstraint: 'Wants transparent monthly query pricing with no hidden overage multipliers.',
@@ -847,7 +1105,8 @@ function getCalibratedFallbackPersonas(
         role: 'enterprise_procurement',
         title: isHoldOut ? 'Head of IT Vendor Procurement' : 'Global Procurement Director',
         companyProfile: isHoldOut ? 'Global Media Enterprise' : 'Fortune 500 Enterprise IT Division',
-        budgetCeiling: Math.round(input.proposedPrice * 3.5),
+        monthlyLossOrProblemCost: '$150,000/mo IT infrastructure procurement spend',
+        budgetCeiling: 15000,
         budgetPeriod: input.billingPeriod,
         riskTolerance: 'low',
         primaryConstraint: 'Out of domain: Requires centralized billing, volume discount tiers, and multi-year contract options.',
@@ -863,12 +1122,193 @@ function getCalibratedFallbackPersonas(
         role: 'security_lead',
         title: isHoldOut ? 'Director of Information Security' : 'Head of SecOps',
         companyProfile: isHoldOut ? 'FinTech Banking Infrastructure' : 'HealthTech / HIPAA SaaS',
-        budgetCeiling: Math.round(input.proposedPrice * 2.5),
+        monthlyLossOrProblemCost: 'Enterprise compliance audit & regulatory risk',
+        budgetCeiling: 8000,
         budgetPeriod: input.billingPeriod,
         riskTolerance: 'low',
         primaryConstraint: 'Out of domain: Data must never leave customer VPC; requires SOC-2 Type II report before testing.',
         existingStack: ['Datadog', 'Okta', 'CrowdStrike', 'GCP'],
         evaluationCriteria: ['SOC-2 Type II report', 'Zero data retention policy', 'Role-based access control'],
+        isHoldOut,
+        isOutOfMarket: true,
+        audienceMatch: 'out_of_market',
+      },
+    ];
+  }
+  // F. Dynamic Generic Business Archetypes (Adapts dynamically to ANY other business domain entered)
+  else {
+    const audienceClean = (input.targetAudience || 'business owners').slice(0, 45);
+    const domainProblemCost = Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 6) : 1500, 1000);
+    const domainBudget = Math.max(input.proposedPrice > 0 ? Math.round(input.proposedPrice * 1.5) : 350, 250);
+
+    archetypes = [
+      {
+        id: `p_gen1_${Date.now()}`,
+        name: isHoldOut ? 'Julian Vance' : 'Alex Mercer',
+        role: 'founder_operator',
+        title: `Founder & Managing Operator, ${audienceClean}`,
+        companyProfile: `Independent growing business ($40k MRR, target audience: ${audienceClean})`,
+        monthlyLossOrProblemCost: `$${domainProblemCost}/mo in lost operational efficiency and manual process waste`,
+        budgetCeiling: domainBudget,
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'medium',
+        primaryConstraint: 'Seeks clear ROI, zero multi-month contract lock-in, and fast self-serve adoption.',
+        existingStack: ['Core Business Tools', 'Stripe', 'Google Workspace'],
+        evaluationCriteria: ['Clear ROI', 'Fast setup (<1 day)', 'Predictable cost', 'No heavy enterprise overhead'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_gen2_${Date.now()}`,
+        name: isHoldOut ? 'Devon Park' : 'Sarah Lin',
+        role: 'operations_lead',
+        title: 'Operations Director',
+        companyProfile: `Mid-sized operational team in ${audienceClean}`,
+        monthlyLossOrProblemCost: `$${Math.round(domainProblemCost * 1.5)}/mo in labor hours spent on manual workflow friction`,
+        budgetCeiling: Math.round(domainBudget * 1.4),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'low',
+        primaryConstraint: 'Needs dependable workflow execution without creating maintenance headaches for team.',
+        existingStack: ['Internal Workflow', 'Slack', 'Airtable', 'Zapier'],
+        evaluationCriteria: ['Reliability', 'Workflow automation', 'Staff training ease'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_gen3_${Date.now()}`,
+        name: isHoldOut ? 'Siddharth Rao' : 'Marco Rossi',
+        role: 'finance_decision_maker',
+        title: 'Finance & Budget Lead',
+        companyProfile: `Financially disciplined operation in ${audienceClean}`,
+        monthlyLossOrProblemCost: `$${Math.round(domainProblemCost * 0.8)}/mo in unrecovered operational leakage`,
+        budgetCeiling: Math.round(domainBudget * 1.1),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'medium',
+        primaryConstraint: 'Requires verifiable ROI where software costs are significantly lower than current financial loss.',
+        existingStack: ['QuickBooks Online', 'Stripe', 'Excel'],
+        evaluationCriteria: ['Net-positive ROI', 'Transparent pricing', 'No surprise fee escalation'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_gen4_${Date.now()}`,
+        name: isHoldOut ? 'Maya Lin' : 'Chloe Bennet',
+        role: 'practitioner_user',
+        title: `Lead Practitioner in ${audienceClean}`,
+        companyProfile: `Hands-on specialist handling core workload`,
+        monthlyLossOrProblemCost: `$${Math.round(domainProblemCost * 1.2)}/mo in repetitive task fatigue`,
+        budgetCeiling: Math.round(domainBudget * 0.9),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'high',
+        primaryConstraint: 'Values product UX, speed, and eliminating tedious manual steps.',
+        existingStack: ['Modern productivity tools', 'Web apps'],
+        evaluationCriteria: ['Ease of use', 'Modern UI', 'Immediate utility'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_gen5_${Date.now()}`,
+        name: isHoldOut ? 'Caleb Wright' : 'Kenji Sato',
+        role: 'growth_lead',
+        title: 'Head of Growth & Commercial Strategy',
+        companyProfile: `Fast-moving growth team targeting ${audienceClean}`,
+        monthlyLossOrProblemCost: `$${Math.round(domainProblemCost * 1.4)}/mo in missed expansion opportunities`,
+        budgetCeiling: Math.round(domainBudget * 1.3),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'medium',
+        primaryConstraint: 'Wants measurable velocity improvements that directly increase customer conversion.',
+        existingStack: ['HubSpot', 'Segment', 'Analytics'],
+        evaluationCriteria: ['Revenue lift', 'Quick integration', 'Self-serve billing'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_gen6_${Date.now()}`,
+        name: isHoldOut ? 'Elena Rostova' : 'Priya Sharma',
+        role: 'managing_director',
+        title: 'Managing Director & Partner',
+        companyProfile: `Boutique service firm in ${audienceClean} ($1M annual revenue)`,
+        monthlyLossOrProblemCost: `$${Math.round(domainProblemCost * 1.8)}/mo in operational inefficiency`,
+        budgetCeiling: Math.round(domainBudget * 1.6),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'medium',
+        primaryConstraint: 'Needs consistent service quality across clients without adding overhead.',
+        existingStack: ['Client Portal', 'Billing', 'CRM'],
+        evaluationCriteria: ['Quality assurance', 'Client data security', 'Multi-seat access'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_gen7_${Date.now()}`,
+        name: isHoldOut ? 'Amara Okafor' : 'David Zhang',
+        role: 'solo_consultant',
+        title: `Independent Consultant in ${audienceClean}`,
+        companyProfile: `Solo boutique practice`,
+        monthlyLossOrProblemCost: `$${Math.round(domainProblemCost * 0.7)}/mo in billable time lost to admin work`,
+        budgetCeiling: Math.round(domainBudget * 0.8),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'medium',
+        primaryConstraint: 'Zero patience for complex enterprise software setups or multi-week onboarding.',
+        existingStack: ['MacBook', 'SaaS tools', 'Stripe'],
+        evaluationCriteria: ['Instant setup', 'Low upfront commitment', 'Clear value proposition'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_gen8_${Date.now()}`,
+        name: isHoldOut ? 'Tomasz Kowalski' : 'Rachel O\'Connor',
+        role: 'department_lead',
+        title: 'Department Team Lead',
+        companyProfile: `Functional team of 6 handling core operations in ${audienceClean}`,
+        monthlyLossOrProblemCost: `$${Math.round(domainProblemCost * 1.1)}/mo in workflow bottlenecks`,
+        budgetCeiling: Math.round(domainBudget * 1.2),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'low',
+        primaryConstraint: 'Needs predictable monthly subscription pricing with clear team permissions.',
+        existingStack: ['Team collaboration tools', 'Google Workspace'],
+        evaluationCriteria: ['Team collaboration', 'Clear licensing', 'Fast onboarding'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      // 2 Out-of-Market Stress-Test Personas
+      {
+        id: `p_gen9_out_${Date.now()}`,
+        name: isHoldOut ? 'Arthur Dent' : 'Victoria Liu',
+        role: 'enterprise_procurement',
+        title: 'Enterprise Vendor Procurement Director',
+        companyProfile: 'Fortune 500 Corporate IT Division',
+        monthlyLossOrProblemCost: '$100,000/mo enterprise IT infrastructure spend',
+        budgetCeiling: 10000,
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'low',
+        primaryConstraint: 'Out of domain: Requires master services agreement (MSA), SOC-2 Type II attestation, and enterprise invoice billing.',
+        existingStack: ['Coupa', 'ServiceNow', 'SAP ERP'],
+        evaluationCriteria: ['SOC-2 Type II', 'Enterprise MSA', 'Volume discounting', 'Dedicated account manager'],
+        isHoldOut,
+        isOutOfMarket: true,
+        audienceMatch: 'out_of_market',
+      },
+      {
+        id: `p_gen10_out_${Date.now()}`,
+        name: isHoldOut ? 'Liam Gallagher' : 'Marcus Bell',
+        role: 'compliance_auditor',
+        title: 'Corporate Risk & Compliance Officer',
+        companyProfile: 'Regulated Enterprise Risk Management',
+        monthlyLossOrProblemCost: 'Enterprise regulatory compliance audit risks',
+        budgetCeiling: 5000,
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'low',
+        primaryConstraint: 'Out of domain: Tools must have independent third-party security audits, data residency controls, and role-based access before evaluation.',
+        existingStack: ['Archer GRC', 'Splunk', 'Okta SSO'],
+        evaluationCriteria: ['Independent security audit', 'Role-based access controls', 'Data residency guarantees'],
         isHoldOut,
         isOutOfMarket: true,
         audienceMatch: 'out_of_market',

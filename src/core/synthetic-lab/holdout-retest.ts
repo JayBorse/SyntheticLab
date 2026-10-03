@@ -38,13 +38,14 @@ export async function executeHoldOutRetest(
   // Generate a strictly fresh, role-mirrored hold-out panel (Cohort B)
   const initialIds = new Set(initialPersonas.map((p) => p.id));
   const initialNames = new Set(initialPersonas.map((p) => p.name.toLowerCase()));
-  const targetRoles = initialPersonas.map((p) => p.role);
+  const targetRoles = initialPersonas.length > 0 ? initialPersonas.map((p) => p.role) : undefined;
+  const panelCount = initialPersonas.length > 0 ? initialPersonas.length : (initialVerdict.totalPersonas > 0 ? initialVerdict.totalPersonas : 10);
 
   const rawHoldOutPersonas = await generateSyntheticPersonas(revisedInput, {
-    count: initialPersonas.length,
+    count: panelCount,
     isHoldOut: true,
     targetRoles,
-    mirrorPersonas: initialPersonas,
+    mirrorPersonas: initialPersonas.length > 0 ? initialPersonas : undefined,
     excludeNames: initialNames,
   });
 
@@ -61,7 +62,8 @@ export async function executeHoldOutRetest(
       ...p,
       id: `holdout_${Date.now()}_${idx}`,
       name: uniqueName,
-      role: targetRoles[idx] || p.role,
+      role: (targetRoles && targetRoles[idx]) ? targetRoles[idx] : p.role,
+      monthlyLossOrProblemCost: p.monthlyLossOrProblemCost || (sourcePersona ? sourcePersona.monthlyLossOrProblemCost : undefined),
       isHoldOut: true,
       isOutOfMarket: isOut,
       audienceMatch: isOut ? 'out_of_market' : 'in_market',

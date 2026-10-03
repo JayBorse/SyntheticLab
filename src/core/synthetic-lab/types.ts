@@ -23,6 +23,7 @@ export interface SyntheticPersona {
   budgetPeriod: 'month' | 'year' | 'quarter' | 'one_time' | string;
   riskTolerance: 'low' | 'medium' | 'high';
   primaryConstraint: string;
+  monthlyLossOrProblemCost?: string; // Estimated monthly financial loss, labor waste, or operational cost of this problem today
   existingStack: string[];
   evaluationCriteria: string[];
   isHoldOut?: boolean; // True if reserved for Phase 2 validation

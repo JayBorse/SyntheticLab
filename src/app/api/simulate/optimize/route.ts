@@ -25,7 +25,10 @@ export async function POST(req: NextRequest) {
   const input: SimulationInput = body.input;
   const verdict: SimulationVerdict = body.verdict;
   const evidence: GroundedEvidence[] = body.evidence || [];
-  const initialPersonas: SyntheticPersona[] = body.personas || [];
+  const initialPersonas: SyntheticPersona[] =
+    (Array.isArray(body.initialPersonas) && body.initialPersonas.length > 0 ? body.initialPersonas : undefined) ||
+    (Array.isArray(body.personas) && body.personas.length > 0 ? body.personas : undefined) ||
+    [];
 
   if (!input || !verdict) {
     return new Response(JSON.stringify({ error: 'Missing simulation input or initial verdict' }), {

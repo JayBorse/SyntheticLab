@@ -606,4 +606,88 @@ describe('SyntheticLab Core Architecture & Verification Suite', () => {
     const mdNoTokens = generateMarkdownReport(exportDataNoTokens);
     assert.ok(!mdNoTokens.includes('Measured Token Consumption'), 'Report must hide token metric when not measured');
   });
+
+  it('18. Performance/contingency fee models count adopters as commercial paid adopters rather than free tier', () => {
+    const disputeVantageInput: SimulationInput = {
+      productName: 'DisputeVantage',
+      tagline: 'Automated Chargeback Defense. Pay Only When You Win.',
+      description: 'Merchants pay only when DisputeVantage wins, with a 15% success fee capped at $49 per recovered dispute.',
+      proposedPrice: 0,
+      billingPeriod: 'month',
+      targetAudience: 'SMB e-commerce merchants facing recurring chargebacks',
+      category: 'custom',
+      pricingTiers: 'Dispute Recovery: 15% of recovered dispute value, capped at $49 per successfully won dispute\nMerchant Plan: No monthly subscription required; pay only on success',
+    };
+
+    const mockEvals: PersonaEvaluation[] = [
+      {
+        personaId: 'p1',
+        personaName: 'Jordan Lee',
+        role: 'ecommerce_founder',
+        vote: 'adopt',
+        acceptablePrice: 0, // Adopting contingency model with $0 base fee
+        acceptablePeriod: 'month',
+        fatalObjections: [],
+        dealMakers: [],
+        rationale: 'Pay only when win saves cash',
+      },
+      {
+        personaId: 'p2',
+        personaName: 'Priya Mehta',
+        role: 'ops_manager',
+        vote: 'adopt',
+        acceptablePrice: 0,
+        acceptablePeriod: 'month',
+        fatalObjections: [],
+        dealMakers: [],
+        rationale: 'Reduces manual work',
+      },
+      {
+        personaId: 'p3',
+        personaName: 'Daniel Ruiz',
+        role: 'procurement_director',
+        vote: 'reject',
+        acceptablePrice: 0,
+        acceptablePeriod: 'month',
+        isOutOfMarket: true,
+        fatalObjections: [{ objection: 'Need enterprise SLA', severity: 'blocker' }],
+        dealMakers: [],
+        rationale: 'Out of domain',
+      },
+    ];
+
+    const verdict = computeSimulationVerdict(disputeVantageInput, mockEvals);
+
+    assert.equal(verdict.totalPersonas, 3);
+    assert.equal(verdict.adoptCount, 2);
+    // Crucial check: Performance fee adopters must NOT be treated as $0 free-tier leeches
+    assert.equal(verdict.paidAdoptCount, 2, 'Performance fee adopters must register as commercial paid adopters');
+    assert.equal(verdict.freeAdoptCount, 0, 'No free-tier only adopters in performance model');
+    assert.equal(verdict.paidAcceptanceRate, 0.67);
+    assert.ok(verdict.normalizedPriceDisplay.includes('Performance Fee'), 'Must display performance fee label');
+  });
+
+  it('19. Dynamic persona generator adapts to whichever business is entered with realistic problem costs', async () => {
+    const customBusinessInput: SimulationInput = {
+      productName: 'LegalBriefAI',
+      tagline: 'Automated Deposition Summarizer for Boutique Law Firms',
+      description: 'Summarizes 200-page deposition transcripts in 10 minutes for litigation attorneys, saving 15 billable paralegal hours per case.',
+      proposedPrice: 199,
+      billingPeriod: 'month',
+      targetAudience: 'Solo litigation attorneys, boutique personal injury law firms, and paralegals',
+      category: 'custom',
+    };
+
+    const personas = await generateSyntheticPersonas(customBusinessInput, { count: 10 });
+    assert.equal(personas.length, 10);
+
+    // Verify personas have realistic monthly problem costs and proportional budgets
+    const inMarket = personas.filter(p => !p.isOutOfMarket);
+    assert.ok(inMarket.length >= 8, 'Must have at least 8 in-market personas');
+
+    for (const p of inMarket) {
+      assert.ok(p.monthlyLossOrProblemCost, `Persona ${p.name} must have a quantified monthlyLossOrProblemCost`);
+      assert.ok(p.budgetCeiling > 100, `B2B persona ${p.name} budget ceiling ($${p.budgetCeiling}) must be economically realistic (> $100)`);
+    }
+  });
 });
