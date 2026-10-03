@@ -13,6 +13,11 @@ import {
 } from '../src/core/synthetic-lab/semantic-matcher';
 import { checkSimulationRateLimit } from '../src/core/security/rate-limiter';
 import { optimizeProductPitch } from '../src/core/synthetic-lab/optimizer';
+import {
+  generateMarkdownReport,
+  generateCsvExport,
+  generateJsonExport,
+} from '../src/core/synthetic-lab/report-exporter';
 
 describe('SyntheticLab Core Architecture & Verification Suite', () => {
   it('1. Presets have complete inputs and pre-warmed Tavily market evidence', () => {
@@ -281,5 +286,49 @@ describe('SyntheticLab Core Architecture & Verification Suite', () => {
 
   it('10. Optimizer strictly formulates commitments and contractual roadmaps rather than claiming fake past achievements', () => {
     assert.ok(typeof optimizeProductPitch === 'function', 'optimizeProductPitch must be an executable function');
+  });
+
+  it('11. Report Exporter generates full Executive Markdown, CSV Matrix, and Raw JSON with empirical integrity', () => {
+    const vectorStream = SIMULATION_PRESETS.find((p) => p.id === 'devtools_api')!;
+    assert.ok(vectorStream.savedRun, 'Must have savedRun');
+
+    const exportData = {
+      input: vectorStream.input,
+      verdict: vectorStream.savedRun.verdict,
+      personas: vectorStream.savedRun.personas,
+      evidence: vectorStream.cachedEvidence,
+      evaluations: vectorStream.savedRun.evaluations,
+      optimizedPitch: vectorStream.savedRun.optimizedPitch || null,
+      holdOutResult: vectorStream.savedRun.holdOutResult || null,
+      telemetry: {
+        modelFast: 'nemotron-3-super-120b',
+        modelReasoning: 'Nemotron-3-Ultra-550b',
+        totalTokens: 18450,
+        parallelCalls: 5,
+        latencyMs: 1420,
+      },
+    };
+
+    // 1. Markdown Report Verification
+    const md = generateMarkdownReport(exportData);
+    assert.ok(md.includes('# SyntheticLab Procurement Teardown: VectorStream AI'), 'MD must contain header with product title');
+    assert.ok(md.includes('## 1. Executive Procurement Verdict'), 'MD must contain executive verdict section');
+    assert.ok(md.includes('## 4. Cohort A: 10 Autonomous Buyer Persona Evaluations'), 'MD must contain persona evaluations');
+    assert.ok(md.includes('## 5. Autonomous Optimization (NVIDIA Nemotron 3 Ultra)'), 'MD must contain optimization section');
+    assert.ok(md.includes('## 6. Cohort B: Blinded Hold-Out Committee Validation'), 'MD must contain holdout validation');
+
+    // 2. CSV Matrix Verification
+    const csv = generateCsvExport(exportData);
+    assert.ok(csv.startsWith('"Persona ID","Persona Name"'), 'CSV must start with proper column headers');
+    const lines = csv.split('\r\n');
+    assert.equal(lines.length, exportData.evaluations.length + 1, 'CSV must have 1 header line plus 1 line per evaluation');
+
+    // 3. JSON Export Verification
+    const jsonStr = generateJsonExport(exportData);
+    const parsed = JSON.parse(jsonStr);
+    assert.equal(parsed.pitch.productName, 'VectorStream AI');
+    assert.equal(parsed.cohortA.personas.length, exportData.personas.length);
+    assert.equal(parsed.cohortA.evaluations.length, exportData.evaluations.length);
+    assert.ok(parsed.metadata.exportedAt, 'Must include export timestamp');
   });
 });

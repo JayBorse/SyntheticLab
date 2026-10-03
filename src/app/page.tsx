@@ -43,7 +43,10 @@ import {
   StepItem,
   Drawer,
   PriceAcceptanceChart,
+  ExportMenu,
+  ExportCard,
 } from '@/components/instrument';
+import { SimulationExportData } from '@/core/synthetic-lab/report-exporter';
 
 export default function SyntheticLabPage() {
   // Theme State (Dark Graphite default, clean Light mode support)
@@ -114,6 +117,20 @@ export default function SyntheticLabPage() {
     parallelCalls: 10,
     latencyMs: 0,
   });
+
+  const exportData: SimulationExportData | null = verdict
+    ? {
+        input: currentInput,
+        verdict,
+        personas,
+        evidence,
+        evaluations,
+        optimizedPitch,
+        holdOutResult,
+        telemetry,
+        exportedAt: new Date().toISOString(),
+      }
+    : null;
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const retestAbortControllerRef = useRef<AbortController | null>(null);
@@ -601,6 +618,11 @@ export default function SyntheticLabPage() {
               </Button>
             )}
 
+            {/* Download Findings & Reports (When verdict is available) */}
+            {exportData && (
+              <ExportMenu data={exportData} variant="primary" size="sm" label="Download Report" />
+            )}
+
             {/* Theme Toggle (Dark / Light) */}
             <button
               onClick={toggleTheme}
@@ -1017,16 +1039,21 @@ export default function SyntheticLabPage() {
         {/* 4. VERDICT SECTION (Empirical Stats & Curve) */}
         {verdict && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-[var(--accent)]" />
                 <h2 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase font-mono">
                   Empirical Procurement Verdict
                 </h2>
               </div>
-              <span className="text-[11px] font-mono text-[var(--text-muted)]">
-                Sample size: n = {verdict.totalPersonas} simulated personas
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] font-mono text-[var(--text-muted)]">
+                  Sample size: n = {verdict.totalPersonas} simulated personas
+                </span>
+                {exportData && (
+                  <ExportMenu data={exportData} variant="secondary" size="sm" label="Export Findings" />
+                )}
+              </div>
             </div>
 
             {/* Three Big Numbers with sample sizes and range indicators */}
@@ -1532,6 +1559,11 @@ export default function SyntheticLabPage() {
             </div>
           </div>
         </div>
+
+        {/* 6.5. PERSISTENT EXPORT CARD (When verdict is available) */}
+        {exportData && (
+          <ExportCard data={exportData} />
+        )}
       </main>
 
       {/* 7. FOOTER */}
