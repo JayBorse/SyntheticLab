@@ -19,7 +19,7 @@ export interface SyntheticPersona {
   title: string;
   companyProfile: string;
   budgetCeiling: number; // Max annual/monthly budget in USD
-  budgetPeriod: 'month' | 'year';
+  budgetPeriod: 'month' | 'year' | 'quarter' | 'one_time' | string;
   riskTolerance: 'low' | 'medium' | 'high';
   primaryConstraint: string;
   existingStack: string[];
@@ -45,7 +45,7 @@ export interface PersonaEvaluation {
   role: PersonaRole;
   vote: PersonaVote;
   acceptablePrice: number; // What this persona is willing to pay
-  acceptablePeriod: 'month' | 'year';
+  acceptablePeriod: 'month' | 'year' | 'quarter' | 'one_time' | string;
   fatalObjections: {
     objection: string;
     severity: 'blocker' | 'concern';
@@ -70,7 +70,7 @@ export interface SimulationVerdict {
     median: number;
     max: number;
     currency: string;
-    period: 'month' | 'year';
+    period: 'month' | 'year' | 'quarter' | 'one_time' | string;
   };
   topObjections: {
     objection: string;
@@ -86,7 +86,8 @@ export interface SimulationInput {
   tagline: string;
   description: string;
   proposedPrice: number;
-  billingPeriod: 'month' | 'year';
+  billingPeriod: 'month' | 'year' | 'quarter' | 'one_time' | string;
+  pricingTiers?: string; // Optional multi-tier packaging breakdown (e.g. Preflight $19.99/3mo, Agency $45/mo, Niche Scans $15-$25)
   targetAudience: string;
   category: 'devtools_api' | 'b2b_saas' | 'security_cloud' | 'anonymized_benchmark' | 'custom';
 }
@@ -96,7 +97,7 @@ export interface OptimizedPitch {
   revisedTagline: string;
   revisedDescription: string;
   calibratedPrice: number;
-  calibratedPeriod: 'month' | 'year';
+  calibratedPeriod: 'month' | 'year' | 'quarter' | 'one_time' | string;
   packagingFix: string;
   objectionCountermeasures: {
     targetObjection: string;

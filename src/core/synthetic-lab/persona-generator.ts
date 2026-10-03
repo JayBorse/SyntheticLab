@@ -25,7 +25,7 @@ PRODUCT DETAILS:
 Name: ${input.productName}
 Tagline: ${input.tagline}
 Description: ${input.description}
-Proposed Price: $${input.proposedPrice} per ${input.billingPeriod}
+Proposed Price: $${input.proposedPrice} per ${input.billingPeriod}${input.pricingTiers ? `\nPricing Tiers & Packaging:\n${input.pricingTiers}` : ''}
 Target Audience: ${input.targetAudience}
 
 REQUIREMENTS:

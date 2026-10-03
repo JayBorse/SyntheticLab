@@ -39,7 +39,7 @@ ORIGINAL PRODUCT PITCH:
 Product: ${input.productName}
 Tagline: ${input.tagline}
 Description: ${input.description}
-Proposed Price: $${input.proposedPrice} per ${input.billingPeriod}
+Proposed Price: $${input.proposedPrice} per ${input.billingPeriod}${input.pricingTiers ? `\nPricing Tiers & Packaging:\n${input.pricingTiers}` : ''}
 Target ICP: ${input.targetAudience}
 
 EMPIRICAL ARENA TEST RESULTS:

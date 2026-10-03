@@ -18,6 +18,8 @@ import {
   Moon,
   Globe,
   Clock,
+  Edit3,
+  Layers,
 } from 'lucide-react';
 import {
   SimulationInput,
@@ -65,6 +67,9 @@ export default function SyntheticLabPage() {
   // Presets and Input State
   const [selectedPresetId, setSelectedPresetId] = useState<string>(SIMULATION_PRESETS[0].id);
   const [currentInput, setCurrentInput] = useState<SimulationInput>(SIMULATION_PRESETS[0].input);
+  const [pitchDraft, setPitchDraft] = useState<SimulationInput>(SIMULATION_PRESETS[0].input);
+  const [cadenceOption, setCadenceOption] = useState<string>('month');
+  const [customCadenceText, setCustomCadenceText] = useState<string>('');
   const [landingPageUrl, setLandingPageUrl] = useState<string>('https://vectorstream.ai');
   const [isEditingInput, setIsEditingInput] = useState<boolean>(false);
 
@@ -118,10 +123,93 @@ export default function SyntheticLabPage() {
     if (found) {
       setSelectedPresetId(presetId);
       setCurrentInput(found.input);
+      setPitchDraft(found.input);
+      const std = ['month', 'quarter', 'year', 'one_time'];
+      if (std.includes(found.input.billingPeriod)) {
+        setCadenceOption(found.input.billingPeriod);
+        setCustomCadenceText('');
+      } else {
+        setCadenceOption('custom');
+        setCustomCadenceText(found.input.billingPeriod);
+      }
       setLandingPageUrl(presetId === 'devtools_api' ? 'https://vectorstream.ai' : presetId === 'security_cloud' ? 'https://auditpulse.io' : 'https://enginex.dev');
       setIsEditingInput(false);
       handleReset();
     }
+  };
+
+  const handleStartCustomPitch = () => {
+    setSelectedPresetId('custom');
+    setPitchDraft({ ...currentInput });
+    const std = ['month', 'quarter', 'year', 'one_time'];
+    if (std.includes(currentInput.billingPeriod)) {
+      setCadenceOption(currentInput.billingPeriod);
+      setCustomCadenceText('');
+    } else {
+      setCadenceOption('custom');
+      setCustomCadenceText(currentInput.billingPeriod);
+    }
+    setIsEditingInput(true);
+  };
+
+  const handleStartEdit = () => {
+    setPitchDraft({ ...currentInput });
+    const std = ['month', 'quarter', 'year', 'one_time'];
+    if (std.includes(currentInput.billingPeriod)) {
+      setCadenceOption(currentInput.billingPeriod);
+      setCustomCadenceText('');
+    } else {
+      setCadenceOption('custom');
+      setCustomCadenceText(currentInput.billingPeriod);
+    }
+    setIsEditingInput(true);
+  };
+
+  const handleCancelEdit = () => {
+    setPitchDraft({ ...currentInput });
+    setIsEditingInput(false);
+  };
+
+  const computeFinalInput = (): SimulationInput => {
+    const period = cadenceOption === 'custom'
+      ? (customCadenceText.trim() || 'custom')
+      : cadenceOption;
+    return {
+      ...pitchDraft,
+      billingPeriod: period,
+      pricingTiers: pitchDraft.pricingTiers?.trim() ? pitchDraft.pricingTiers.trim() : undefined,
+    };
+  };
+
+  const handleSavePitch = () => {
+    const finalInput = computeFinalInput();
+    setCurrentInput(finalInput);
+    setIsEditingInput(false);
+  };
+
+  const handleSaveAndRun = () => {
+    const finalInput = computeFinalInput();
+    setCurrentInput(finalInput);
+    setIsEditingInput(false);
+    handleLaunch(finalInput);
+  };
+
+  const handleLoadAppsvantageTemplate = () => {
+    const template: SimulationInput = {
+      productName: 'Appsvantage',
+      tagline: 'Autonomous App Store Optimization & Competitor Intelligence Engine',
+      description: 'AI-driven app intelligence, ASO keyword auditing, competitor niche scanning, and preflight store ranking forecasts for indie makers and agency teams.',
+      proposedPrice: 19.99,
+      billingPeriod: '3 months',
+      pricingTiers: 'Preflight: $19.99 for 3 months (founders/early stage)\nAgencies: $45/mo (unlimited scans & client reporting)\nNiche Scans: 5 scans for $15, 15 scans for $25 (pay-as-you-go packs)',
+      targetAudience: 'Indie app developers, mobile SaaS founders, and growth agencies',
+      category: 'b2b_saas',
+    };
+    setSelectedPresetId('custom');
+    setPitchDraft(template);
+    setCadenceOption('custom');
+    setCustomCadenceText('3 months');
+    setLandingPageUrl('https://appsvantage.com');
   };
 
   const handleReset = () => {
@@ -147,14 +235,14 @@ export default function SyntheticLabPage() {
 
   // Replay of a Saved Run
   const handleInstantReplay = () => {
-    const activePreset = SIMULATION_PRESETS.find((p) => p.id === selectedPresetId);
+    const activePreset = SIMULATION_PRESETS.find((p) => p.id === selectedPresetId) || SIMULATION_PRESETS[0];
     if (!activePreset?.savedRun) return;
 
     setStatus('completed');
     setCurrentStage('completed');
     setIsReplayActive(true);
     setIsRateLimited(false);
-    setStatusMessage('Replaying verified benchmark run (VectorStream AI). Real empirical distribution.');
+    setStatusMessage(`Replaying verified benchmark run (${activePreset.name.split(' (')[0]}). Real empirical distribution.`);
     setPersonas(activePreset.savedRun.personas);
     setEvidence(activePreset.cachedEvidence);
     setEvaluations(activePreset.savedRun.evaluations);
@@ -175,8 +263,9 @@ export default function SyntheticLabPage() {
   };
 
   // Live Simulation Stream (Cohort A)
-  const handleLaunch = async () => {
+  const handleLaunch = async (overrideInput?: SimulationInput) => {
     if (status === 'running') return;
+    const inputToRun = overrideInput || currentInput;
 
     setStatus('running');
     setIsReplayActive(false);
@@ -186,7 +275,7 @@ export default function SyntheticLabPage() {
     setOptimizedPitch(null);
     setHoldOutResult(null);
     setCurrentStage('analyzing_input');
-    setStatusMessage(`Initializing adversarial simulation for "${currentInput.productName}"...`);
+    setStatusMessage(`Initializing adversarial simulation for "${inputToRun.productName}"...`);
     setPersonas([]);
     setEvidence([]);
     setEvaluations([]);
@@ -199,7 +288,7 @@ export default function SyntheticLabPage() {
       const response = await fetch('/api/simulate/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentInput),
+        body: JSON.stringify(inputToRun),
         signal: abortControllerRef.current.signal,
       });
 
@@ -562,7 +651,7 @@ export default function SyntheticLabPage() {
             variant="rose"
             title="Simulation Error"
             action={
-              <Button size="sm" variant="secondary" onClick={handleLaunch}>
+              <Button size="sm" variant="secondary" onClick={() => handleLaunch()}>
                 Retry Simulation
               </Button>
             }
@@ -600,9 +689,9 @@ export default function SyntheticLabPage() {
                 </button>
               ))}
               <button
-                onClick={() => setIsEditingInput(!isEditingInput)}
+                onClick={handleStartCustomPitch}
                 className={`px-2.5 py-1 rounded-[var(--radius-sm)] text-xs font-mono transition-all border cursor-pointer ${
-                  isEditingInput
+                  isEditingInput || selectedPresetId === 'custom'
                     ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent-border)] font-semibold'
                     : 'bg-[var(--surface-2)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-secondary)]'
                 }`}
@@ -615,124 +704,300 @@ export default function SyntheticLabPage() {
           {/* Pitch Fields & URL Input */}
           <div className="space-y-3">
             {isEditingInput ? (
-              <div className="p-4 rounded-[var(--radius-md)] bg-[var(--surface-2)] border border-[var(--border-subtle)] space-y-3 text-xs">
+              <div className="p-4 sm:p-5 rounded-[var(--radius-md)] bg-[var(--surface-2)] border border-[var(--accent-border)] space-y-4 text-xs">
+                {/* Form Header */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-3">
+                  <div>
+                    <span className="font-semibold text-sm text-[var(--text-primary)] flex items-center gap-1.5">
+                      <Edit3 className="h-4 w-4 text-[var(--accent)]" />
+                      Custom Pitch & Pricing Configuration
+                    </span>
+                    <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                      Configure your product positioning, cadence, and multi-tier pricing for autonomous committee stress-testing.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleLoadAppsvantageTemplate}
+                    className="text-xs font-mono text-[var(--accent)] hover:underline flex items-center gap-1.5 cursor-pointer py-1 self-start sm:self-auto bg-[var(--surface-1)] px-2.5 py-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] hover:border-[var(--accent-border)]"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Load Appsvantage Example
+                  </button>
+                </div>
+
+                {/* Row 1: Product Name & Tagline */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-mono uppercase text-[var(--text-muted)] block">Product Name</label>
+                    <label className="text-[10px] font-mono uppercase text-[var(--text-muted)] font-medium block">Product Name</label>
                     <input
                       type="text"
-                      value={currentInput.productName}
-                      onChange={(e) => setCurrentInput({ ...currentInput, productName: e.target.value })}
-                      className="w-full mt-1 px-3 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-1)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono"
+                      value={pitchDraft.productName}
+                      onChange={(e) => setPitchDraft({ ...pitchDraft, productName: e.target.value })}
+                      placeholder="e.g. Appsvantage"
+                      className="w-full mt-1 px-3 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-1)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono focus:outline-none focus:border-[var(--accent)]"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-mono uppercase text-[var(--text-muted)] block">Tagline</label>
+                    <label className="text-[10px] font-mono uppercase text-[var(--text-muted)] font-medium block">Tagline</label>
                     <input
                       type="text"
-                      value={currentInput.tagline}
-                      onChange={(e) => setCurrentInput({ ...currentInput, tagline: e.target.value })}
-                      className="w-full mt-1 px-3 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-1)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono"
+                      value={pitchDraft.tagline}
+                      onChange={(e) => setPitchDraft({ ...pitchDraft, tagline: e.target.value })}
+                      placeholder="e.g. Autonomous ASO & App Intelligence"
+                      className="w-full mt-1 px-3 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-1)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono focus:outline-none focus:border-[var(--accent)]"
                     />
                   </div>
                 </div>
 
+                {/* Row 2: Category & Target ICP */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-mono uppercase text-[var(--text-muted)] font-medium block">Category</label>
+                    <select
+                      value={pitchDraft.category}
+                      onChange={(e) => setPitchDraft({ ...pitchDraft, category: e.target.value as SimulationInput['category'] })}
+                      className="w-full mt-1 px-3 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-1)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono focus:outline-none focus:border-[var(--accent)]"
+                    >
+                      <option value="b2b_saas">B2B SaaS / Growth Analytics</option>
+                      <option value="devtools_api">Developer Tools & APIs</option>
+                      <option value="security_cloud">Security & Cloud Infrastructure</option>
+                      <option value="custom">Custom / Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-mono uppercase text-[var(--text-muted)] font-medium block">Target ICP</label>
+                    <input
+                      type="text"
+                      value={pitchDraft.targetAudience}
+                      onChange={(e) => setPitchDraft({ ...pitchDraft, targetAudience: e.target.value })}
+                      placeholder="e.g. Mobile founders, indie devs, growth agencies"
+                      className="w-full mt-1 px-3 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-1)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono focus:outline-none focus:border-[var(--accent)]"
+                    />
+                  </div>
+                </div>
+
+                {/* Row 3: Product Description */}
                 <div>
-                  <label className="text-[10px] font-mono uppercase text-[var(--text-muted)] block">Product Description & Packaging</label>
+                  <label className="text-[10px] font-mono uppercase text-[var(--text-muted)] font-medium block">Product Description & Core Proposition</label>
                   <textarea
                     rows={2}
-                    value={currentInput.description}
-                    onChange={(e) => setCurrentInput({ ...currentInput, description: e.target.value })}
-                    className="w-full mt-1 px-3 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-1)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono"
+                    value={pitchDraft.description}
+                    onChange={(e) => setPitchDraft({ ...pitchDraft, description: e.target.value })}
+                    placeholder="Describe the product, core workflow, and value proposition..."
+                    className="w-full mt-1 px-3 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-1)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono leading-relaxed focus:outline-none focus:border-[var(--accent)]"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-[10px] font-mono uppercase text-[var(--text-muted)] block">Proposed Price ($)</label>
-                    <input
-                      type="number"
-                      value={currentInput.proposedPrice}
-                      onChange={(e) => setCurrentInput({ ...currentInput, proposedPrice: Number(e.target.value) || 0 })}
-                      className="w-full mt-1 px-3 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-1)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono"
-                    />
+                {/* Row 4: Pricing Architecture & Cadence */}
+                <div className="p-3.5 rounded-[var(--radius-sm)] bg-[var(--surface-1)] border border-[var(--border-subtle)] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)] font-semibold flex items-center gap-1.5">
+                      <Layers className="h-3.5 w-3.5 text-[var(--accent)]" />
+                      Flexible Pricing Architecture & Cadence
+                    </span>
+                    <span className="text-[10px] font-mono text-[var(--text-muted)]">Supports multi-tier, credit packs & custom cadences</span>
                   </div>
-                  <div>
-                    <label className="text-[10px] font-mono uppercase text-[var(--text-muted)] block">Target ICP</label>
-                    <input
-                      type="text"
-                      value={currentInput.targetAudience}
-                      onChange={(e) => setCurrentInput({ ...currentInput, targetAudience: e.target.value })}
-                      className="w-full mt-1 px-3 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-1)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono"
-                    />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[10px] font-mono uppercase text-[var(--text-muted)] font-medium block">
+                        Baseline / Entry Price ($)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={pitchDraft.proposedPrice}
+                        onChange={(e) => setPitchDraft({ ...pitchDraft, proposedPrice: Number(e.target.value) || 0 })}
+                        placeholder="e.g. 19.99"
+                        className="w-full mt-1 px-3 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-2)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono focus:outline-none focus:border-[var(--accent)]"
+                      />
+                      <span className="text-[9px] font-mono text-[var(--text-muted)] mt-0.5 block">Used for demand curve & baseline WTP</span>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-mono uppercase text-[var(--text-muted)] font-medium block">
+                        Billing Cadence / Frequency
+                      </label>
+                      <select
+                        value={cadenceOption}
+                        onChange={(e) => setCadenceOption(e.target.value)}
+                        className="w-full mt-1 px-3 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-2)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono focus:outline-none focus:border-[var(--accent)]"
+                      >
+                        <option value="month">Monthly (/mo)</option>
+                        <option value="quarter">Quarterly (/quarter)</option>
+                        <option value="year">Annual (/yr)</option>
+                        <option value="one_time">One-time / Pack</option>
+                        <option value="custom">Custom Cadence (e.g. 3 months, scan pack)...</option>
+                      </select>
+                      {cadenceOption === 'custom' && (
+                        <input
+                          type="text"
+                          value={customCadenceText}
+                          onChange={(e) => setCustomCadenceText(e.target.value)}
+                          placeholder="e.g. 3 months, per 5 scans"
+                          className="w-full mt-1.5 px-3 py-1 rounded-[var(--radius-sm)] bg-[var(--surface-2)] border border-[var(--accent-border)] text-[var(--text-primary)] text-xs font-mono focus:outline-none"
+                        />
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-mono uppercase text-[var(--text-muted)] font-medium block">
+                        Landing Page URL (Optional)
+                      </label>
+                      <input
+                        type="url"
+                        value={landingPageUrl}
+                        onChange={(e) => setLandingPageUrl(e.target.value)}
+                        placeholder="https://..."
+                        className="w-full mt-1 px-3 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-2)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono focus:outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-[10px] font-mono uppercase text-[var(--text-muted)] block">Landing Page URL</label>
-                    <input
-                      type="url"
-                      value={landingPageUrl}
-                      onChange={(e) => setLandingPageUrl(e.target.value)}
-                      className="w-full mt-1 px-3 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-1)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono"
+
+                  {/* Multi-Tier & Add-On Breakdown */}
+                  <div className="pt-2 border-t border-[var(--border-subtle)] space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-mono uppercase text-[var(--text-muted)] font-medium block">
+                        Multi-Tier Packaging & Add-On Pricing Breakdown (Optional)
+                      </label>
+                      <span className="text-[9px] font-mono text-[var(--accent)]">Passed directly to buyer agents</span>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={pitchDraft.pricingTiers || ''}
+                      onChange={(e) => setPitchDraft({ ...pitchDraft, pricingTiers: e.target.value })}
+                      placeholder={`e.g.\nPreflight: $19.99 for 3 months (founders/early stage)\nAgencies: $45/mo (unlimited scans & client reporting)\nNiche Scans: 5 scans for $15, 15 scans for $25 (pay-as-you-go packs)`}
+                      className="w-full mt-1 px-3 py-2 rounded-[var(--radius-sm)] bg-[var(--surface-2)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono placeholder:text-[var(--text-muted)] leading-relaxed focus:outline-none focus:border-[var(--accent)]"
                     />
+                    <p className="text-[10px] font-mono text-[var(--text-muted)]">
+                      Tip: Autonomous buyer personas (SMBs, agency leads, individual developers) will evaluate the specific tier corresponding to their profile.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Form Action Buttons Bar */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-[var(--border-subtle)]">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-[var(--text-muted)]">
+                      Ready to stress-test your custom offer?
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCancelEdit}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleSavePitch}
+                      leftIcon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                    >
+                      Save Pitch
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={handleSaveAndRun}
+                      disabled={status === 'running'}
+                      isLoading={status === 'running'}
+                      leftIcon={<Play className="h-3.5 w-3.5 fill-current" />}
+                      className="font-mono text-xs uppercase tracking-wider"
+                    >
+                      {status === 'running' ? 'Simulating...' : 'Save & Run Simulation'}
+                    </Button>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="p-4 rounded-[var(--radius-md)] bg-[var(--surface-2)] border border-[var(--border-subtle)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-bold text-base text-[var(--text-primary)] truncate">
-                      {currentInput.productName}
-                    </span>
-                    <span className="text-xs font-medium text-[var(--accent)] truncate">
-                      — {currentInput.tagline}
-                    </span>
+              <div className="p-4 rounded-[var(--radius-md)] bg-[var(--surface-2)] border border-[var(--border-subtle)] space-y-3">
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="font-bold text-base text-[var(--text-primary)] truncate">
+                        {currentInput.productName}
+                      </span>
+                      <span className="text-xs font-medium text-[var(--accent)] truncate">
+                        — {currentInput.tagline}
+                      </span>
+                      <Chip variant="neutral" size="sm" className="ml-1 uppercase text-[10px]">
+                        {currentInput.category.replace('_', ' ')}
+                      </Chip>
+                    </div>
+                    <p className="text-xs text-[var(--text-secondary)] line-clamp-2 leading-relaxed">
+                      {currentInput.description}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono text-[var(--text-muted)] pt-1">
+                      <span>
+                        Proposed Price: <strong className="text-[var(--text-primary)]">${currentInput.proposedPrice}/{currentInput.billingPeriod}</strong>
+                      </span>
+                      <span>•</span>
+                      <span>ICP: <strong className="text-[var(--text-secondary)]">{currentInput.targetAudience}</strong></span>
+                      {landingPageUrl && (
+                        <>
+                          <span>•</span>
+                          <span className="flex items-center gap-1 text-[var(--text-muted)]">
+                            <Globe className="h-3 w-3" />
+                            <span className="truncate max-w-[180px]">{landingPageUrl}</span>
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-[var(--text-secondary)] line-clamp-2 leading-relaxed">
-                    {currentInput.description}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono text-[var(--text-muted)] pt-1">
-                    <span>
-                      Proposed Price: <strong className="text-[var(--text-primary)]">${currentInput.proposedPrice}/{currentInput.billingPeriod}</strong>
-                    </span>
-                    <span>•</span>
-                    <span>ICP: <strong className="text-[var(--text-secondary)]">{currentInput.targetAudience}</strong></span>
-                    {landingPageUrl && (
-                      <>
-                        <span>•</span>
-                        <span className="flex items-center gap-1 text-[var(--text-muted)]">
-                          <Globe className="h-3 w-3" />
-                          <span className="truncate max-w-[180px]">{landingPageUrl}</span>
-                        </span>
-                      </>
+
+                  {/* Primary Action Button */}
+                  <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={handleStartEdit}
+                      leftIcon={<Edit3 className="h-3.5 w-3.5" />}
+                      className="font-mono text-xs"
+                    >
+                      Edit Pitch
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      onClick={() => handleLaunch()}
+                      disabled={status === 'running'}
+                      isLoading={status === 'running'}
+                      leftIcon={<Play className="h-3.5 w-3.5 fill-current" />}
+                      className="w-full sm:w-auto font-mono text-xs uppercase tracking-wider"
+                    >
+                      {status === 'running' ? 'Simulating...' : 'Run Simulation'}
+                    </Button>
+                    {status !== 'idle' && (
+                      <Button
+                        variant="ghost"
+                        size="md"
+                        onClick={handleReset}
+                        leftIcon={<RotateCcw className="h-3 w-3" />}
+                      >
+                        Reset
+                      </Button>
                     )}
                   </div>
                 </div>
 
-                {/* Primary Action Button */}
-                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    onClick={handleLaunch}
-                    disabled={status === 'running'}
-                    isLoading={status === 'running'}
-                    leftIcon={<Play className="h-3.5 w-3.5 fill-current" />}
-                    className="w-full sm:w-auto font-mono text-xs uppercase tracking-wider"
-                  >
-                    {status === 'running' ? 'Simulating...' : 'Run Simulation'}
-                  </Button>
-                  {status !== 'idle' && (
-                    <Button
-                      variant="ghost"
-                      size="md"
-                      onClick={handleReset}
-                      leftIcon={<RotateCcw className="h-3 w-3" />}
-                    >
-                      Reset
-                    </Button>
-                  )}
-                </div>
+                {/* Multi-Tier Packaging Breakdown display (if provided) */}
+                {currentInput.pricingTiers && (
+                  <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--surface-1)] border border-[var(--border-subtle)] space-y-1">
+                    <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)] font-semibold">
+                      <span className="flex items-center gap-1.5 text-[var(--accent)]">
+                        <Layers className="h-3.5 w-3.5" />
+                        Multi-Tier Packaging Structure (Evaluated by Buyer Role)
+                      </span>
+                    </div>
+                    <div className="text-xs font-mono text-[var(--text-secondary)] whitespace-pre-line leading-relaxed">
+                      {currentInput.pricingTiers}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

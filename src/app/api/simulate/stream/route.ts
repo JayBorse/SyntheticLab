@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
     description: body.description || 'High-concurrency serverless vector retrieval engine billed per 1,000 queries.',
     proposedPrice: typeof body.proposedPrice === 'number' ? body.proposedPrice : 40,
     billingPeriod: body.billingPeriod || 'month',
+    pricingTiers: typeof body.pricingTiers === 'string' && body.pricingTiers.trim() ? body.pricingTiers.trim() : undefined,
     targetAudience: body.targetAudience || 'AI Engineers and Agent Developers',
     category: body.category || 'devtools_api',
   };
