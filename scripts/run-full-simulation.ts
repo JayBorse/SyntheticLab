@@ -38,7 +38,7 @@ async function runLiveSimulation() {
 
   console.log('\n2. STAGE 2: Spawning Heterogeneous Persona Swarm (Cohort A)...');
   const t1 = Date.now();
-  const personas = await generateSyntheticPersonas(testInput, { count: 5 });
+  const personas = await generateSyntheticPersonas(testInput, { count: 10 });
   console.log(`✓ Formulated ${personas.length} personas in ${Date.now() - t1}ms:`);
   personas.forEach((p, i) => {
     console.log(`   [Buyer #${i + 1}] ${p.name} | ${p.title} (${p.companyProfile})`);
@@ -63,8 +63,9 @@ async function runLiveSimulation() {
   console.log('\n4. STAGE 4: Computing Empirical Verdict...');
   const verdict = computeSimulationVerdict(testInput, evaluations);
   console.log(`   Total Personas: ${verdict.totalPersonas}`);
-  console.log(`   Adoption Rate:  ${(verdict.acceptanceRate * 100).toFixed(0)}% (${verdict.adoptCount} adopt / ${verdict.rejectCount} reject / ${verdict.hesitantCount} hesitant)`);
-  console.log(`   Median WTP:     $${verdict.priceRange.median}/${verdict.priceRange.period} (Range: $${verdict.priceRange.min} - $${verdict.priceRange.max})`);
+  console.log(`   Overall Adoption: ${(verdict.acceptanceRate * 100).toFixed(0)}% (${verdict.adoptCount} adopt / ${verdict.rejectCount} reject / ${verdict.hesitantCount} hesitant)`);
+  console.log(`   Paid Commercial:  ${(verdict.paidAcceptanceRate * 100).toFixed(0)}% (${verdict.paidAdoptCount} paid / ${verdict.freeAdoptCount} free-only)`);
+  console.log(`   Median WTP:       $${verdict.priceRange.median}/${verdict.priceRange.period} (Range: $${verdict.priceRange.min} - $${verdict.priceRange.max})`);
   console.log('   Top Ranked Fatal Objections:');
   verdict.topObjections.forEach((obj, idx) => {
     console.log(`     #${idx + 1} [${obj.severity.toUpperCase()}] (Freq: ${obj.frequency}): "${obj.objection}"`);
@@ -94,14 +95,14 @@ async function runLiveSimulation() {
   console.log('\n======================================================================');
   console.log('  FINAL VERIFICATION SCORECARD: BEFORE vs. AFTER');
   console.log('======================================================================');
-  console.log(`  Initial Adoption (Cohort A):  ${(holdOutResult.initialAcceptanceRate * 100).toFixed(0)}%`);
-  console.log(`  Hold-Out Adoption (Cohort B): ${(holdOutResult.holdOutAcceptanceRate * 100).toFixed(0)}%`);
-  console.log(`  Indicative Adoption Spread:   [${(holdOutResult.acceptanceRateSpread.min * 100).toFixed(0)}% – ${(holdOutResult.acceptanceRateSpread.max * 100).toFixed(0)}%]`);
-  console.log(`  Initial Median WTP:           $${holdOutResult.initialMedianPrice}`);
-  console.log(`  Hold-Out Median WTP:          $${holdOutResult.holdOutMedianPrice}`);
-  console.log(`  Indicative Price Spread:      $${holdOutResult.priceSpread.min} – $${holdOutResult.priceSpread.max}`);
-  console.log(`  Resolved Objections:          ${holdOutResult.resolvedObjectionsCount} of ${holdOutResult.totalInitialObjections} neutralized`);
-  console.log(`  Anti-Circular Verification:   ${holdOutResult.isHoldOutVerified ? '✓ CONFIRMED (Zero Cohort Overlap)' : 'FAILED'}`);
+  console.log(`  Initial Paid Adoption (Cohort A):  ${(holdOutResult.initialPaidAcceptanceRate * 100).toFixed(0)}% (Overall: ${(holdOutResult.initialAcceptanceRate * 100).toFixed(0)}%)`);
+  console.log(`  Hold-Out Paid Adoption (Cohort B): ${(holdOutResult.holdOutPaidAcceptanceRate * 100).toFixed(0)}% (Overall: ${(holdOutResult.holdOutAcceptanceRate * 100).toFixed(0)}%)`);
+  console.log(`  Indicative Adoption Spread:        [${(holdOutResult.acceptanceRateSpread.min * 100).toFixed(0)}% – ${(holdOutResult.acceptanceRateSpread.max * 100).toFixed(0)}%]`);
+  console.log(`  Initial Median WTP:                $${holdOutResult.initialMedianPrice}`);
+  console.log(`  Hold-Out Median WTP:               $${holdOutResult.holdOutMedianPrice}`);
+  console.log(`  Indicative Price Spread:           $${holdOutResult.priceSpread.min} – $${holdOutResult.priceSpread.max}`);
+  console.log(`  Resolved Objections:               ${holdOutResult.resolvedObjectionsCount} of ${holdOutResult.totalInitialObjections} neutralized`);
+  console.log(`  Anti-Circular Verification:        ${holdOutResult.isHoldOutVerified ? '✓ CONFIRMED (Zero Cohort Overlap)' : 'FAILED'}`);
   console.log(`  Summary: ${holdOutResult.deltaSummary}`);
   console.log('======================================================================\n');
 }
