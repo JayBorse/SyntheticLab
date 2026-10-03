@@ -14,7 +14,17 @@ export async function evaluatePersonaReaction(
   persona: SyntheticPersona,
   evidence: GroundedEvidence[]
 ): Promise<PersonaEvaluation> {
-  const evidenceSummary = evidence
+  // Prevent benchmark contamination: sanitize brand names if anonymized benchmark
+  const isAnonymized = input.category === 'anonymized_benchmark';
+  const effectiveEvidence = isAnonymized
+    ? evidence.map((e) => ({
+        ...e,
+        title: e.title.replace(/\bunity\b/gi, 'EngineX').replace(/\bunreal\b/gi, 'CompetitorEngine'),
+        snippet: e.snippet.replace(/\bunity\b/gi, 'EngineX').replace(/\bunreal\b/gi, 'CompetitorEngine'),
+      }))
+    : evidence;
+
+  const evidenceSummary = effectiveEvidence
     .map(
       (e, idx) =>
         `[Evidence #${idx + 1}] (${e.sourceType} from ${e.domain}): "${e.snippet}" Source URL: ${e.url}`
@@ -22,7 +32,12 @@ export async function evaluatePersonaReaction(
     .join('\n\n');
 
   const prompt = `You are roleplaying as a specific buyer persona evaluating whether to buy or reject a new product pitch.
-Stay 100% in character. Be critical, pragmatic, and adversarial. DO NOT simply agree or flatter the pitch.
+Stay 100% in character. Be realistic, pragmatic, and economically rational.
+
+EVALUATION PRINCIPLES:
+1. Fairness & Objectivity: You are not here to automatically say "no". If a product genuinely solves your pain points, fits comfortably within your budget ceiling, and offers fair terms, vote "adopt" and state your honest willingness to pay.
+2. Hesitation vs Rejection: If the product is appealing but has ambiguities (e.g., unclear SLA, missing usage caps, or variable overage risks), vote "hesitant" and outline the deal-makers that would convert you. Reserve "reject" for severe dealbreakers, prohibitive pricing, or critical compliance violations.
+3. Commercial Intent: If you would ONLY ever use this if it is 100% free, vote "hesitant" with acceptablePrice: 0. Only vote "adopt" if you would actively purchase or commit at a commercial price.
 
 YOUR PERSONA:
 Name: ${persona.name}
@@ -46,7 +61,7 @@ ${evidenceSummary}
 
 YOUR EVALUATION TASK:
 1. Decide your vote: "adopt", "reject", or "hesitant".
-2. State the MAXIMUM price you would realistically pay (can be lower than or equal to proposed price, or 0 if reject).
+2. State the MAXIMUM price you would realistically pay (can be lower than, equal to, or higher than proposed price; or 0 if free-tier only / reject).
 3. State your fatal objections. Reference real evidence from the market research above where applicable.
 4. State any deal-makers (features or terms that could change your mind).
 5. Give your honest internal reasoning.
@@ -97,8 +112,8 @@ Return ONLY valid JSON.`;
         ? parsed.fatalObjections.map((o: { objection: string; severity?: 'blocker' | 'concern'; groundedEvidenceUrl?: string; evidenceSnippet?: string }) => ({
             objection: o.objection || 'General budget constraint',
             severity: o.severity === 'concern' ? 'concern' : 'blocker',
-            groundedEvidenceUrl: o.groundedEvidenceUrl || evidence[0]?.url,
-            evidenceSnippet: o.evidenceSnippet || evidence[0]?.snippet,
+            groundedEvidenceUrl: o.groundedEvidenceUrl || effectiveEvidence[0]?.url,
+            evidenceSnippet: o.evidenceSnippet || effectiveEvidence[0]?.snippet,
           }))
         : [],
       dealMakers: Array.isArray(parsed.dealMakers) ? parsed.dealMakers : ['Lower pricing', 'Better integration'],
@@ -106,7 +121,7 @@ Return ONLY valid JSON.`;
     };
   } catch (err) {
     console.warn(`Evaluation failed for persona ${persona.name}, using empirical heuristic:`, err);
-    return getFallbackEvaluation(input, persona, evidence);
+    return getFallbackEvaluation(input, persona, effectiveEvidence);
   }
 }
 
@@ -122,6 +137,9 @@ export function computeSimulationVerdict(
       rejectCount: 0,
       hesitantCount: 0,
       acceptanceRate: 0,
+      paidAdoptCount: 0,
+      freeAdoptCount: 0,
+      paidAcceptanceRate: 0,
       priceRange: { min: 0, median: 0, max: 0, currency: 'USD', period: input.billingPeriod },
       topObjections: [],
       suggestedActionItems: [],
@@ -133,12 +151,17 @@ export function computeSimulationVerdict(
   const hesitantCount = evaluations.filter((e) => e.vote === 'hesitant').length;
   const acceptanceRate = Number((adoptCount / total).toFixed(2));
 
+  // Commercial conversion metrics (distinguishing paid adoption vs free tier)
+  const paidAdoptCount = evaluations.filter((e) => e.vote === 'adopt' && e.acceptablePrice > 0).length;
+  const freeAdoptCount = evaluations.filter((e) => e.vote === 'adopt' && e.acceptablePrice === 0).length;
+  const paidAcceptanceRate = Number((paidAdoptCount / total).toFixed(2));
+
   // Calculate empirical price distribution from acceptablePrice
   const prices = evaluations.map((e) => e.acceptablePrice).sort((a, b) => a - b);
-  const minPrice = prices[0];
-  const maxPrice = prices[prices.length - 1];
+  const minPrice = prices[0] ?? 0;
+  const maxPrice = prices[prices.length - 1] ?? 0;
   const midIndex = Math.floor(prices.length / 2);
-  const medianPrice = prices.length % 2 !== 0 ? prices[midIndex] : Math.round((prices[midIndex - 1] + prices[midIndex]) / 2);
+  const medianPrice = prices.length % 2 !== 0 ? prices[midIndex] : Math.round(((prices[midIndex - 1] ?? minPrice) + (prices[midIndex] ?? maxPrice)) / 2);
 
   // Cluster and rank objections
   const objectionMap = new Map<string, { count: number; sources: Set<string>; severity: 'blocker' | 'concern' }>();
@@ -176,6 +199,9 @@ export function computeSimulationVerdict(
     rejectCount,
     hesitantCount,
     acceptanceRate,
+    paidAdoptCount,
+    freeAdoptCount,
+    paidAcceptanceRate,
     priceRange: {
       min: minPrice,
       median: medianPrice,

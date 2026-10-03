@@ -31,6 +31,7 @@ import {
   HoldOutRetestResult,
 } from '@/core/synthetic-lab/types';
 import { SIMULATION_PRESETS } from '@/core/synthetic-lab/presets';
+import { evaluateBenchmarkObjectionRecall } from '@/core/synthetic-lab/semantic-matcher';
 
 export default function SyntheticLabPage() {
   const [selectedPresetId, setSelectedPresetId] = useState<string>(SIMULATION_PRESETS[0].id);
@@ -297,31 +298,14 @@ export default function SyntheticLabPage() {
 
   const activePreset = SIMULATION_PRESETS.find((p) => p.id === selectedPresetId);
 
-  // Compute Objection Recall for Blind Replay Benchmark
+  // Compute Semantic Objection Recall for Blind Replay Benchmark
   const computeObjectionRecall = () => {
     if (!activePreset?.groundTruthObjections || !verdict) return null;
-    const gt = activePreset.groundTruthObjections;
     const allObjectionTexts = [
-      ...verdict.topObjections.map((o) => o.objection.toLowerCase()),
-      ...evaluations.flatMap((e) => e.fatalObjections.map((fo) => fo.objection.toLowerCase())),
+      ...verdict.topObjections.map((o) => o.objection),
+      ...evaluations.flatMap((e) => e.fatalObjections.map((fo) => fo.objection)),
     ];
-
-    let matches = 0;
-    const matchDetails = gt.map((item) => {
-      const keywords = item.toLowerCase().split(/[\s:,\-]+/).filter((w) => w.length > 4);
-      const isMatched = allObjectionTexts.some((text) =>
-        keywords.some((kw) => text.includes(kw))
-      );
-      if (isMatched) matches += 1;
-      return { item, isMatched };
-    });
-
-    return {
-      matches,
-      total: gt.length,
-      percentage: Math.round((matches / gt.length) * 100),
-      details: matchDetails,
-    };
+    return evaluateBenchmarkObjectionRecall(allObjectionTexts);
   };
 
   const objectionRecall = computeObjectionRecall();
@@ -629,20 +613,20 @@ export default function SyntheticLabPage() {
             {holdOutResult && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  {/* Delta 1: Acceptance Rate */}
+                  {/* Delta 1: Acceptance Rate (Paid vs Overall) */}
                   <div className="p-4 rounded-xl bg-zinc-950/80 border border-emerald-500/30">
-                    <span className="text-[11px] text-zinc-400 uppercase font-semibold">Adoption Rate Delta</span>
+                    <span className="text-[11px] text-zinc-400 uppercase font-semibold">Paid Commercial Adoption</span>
                     <div className="flex items-baseline gap-2 mt-1">
                       <span className="text-lg font-mono text-zinc-500 line-through">
-                        {(holdOutResult.initialAcceptanceRate * 100).toFixed(0)}%
+                        {((holdOutResult.initialPaidAcceptanceRate ?? holdOutResult.initialAcceptanceRate) * 100).toFixed(0)}%
                       </span>
                       <ArrowRight className="h-3.5 w-3.5 text-zinc-600" />
                       <span className="text-2xl font-extrabold font-mono text-emerald-400">
-                        {(holdOutResult.holdOutAcceptanceRate * 100).toFixed(0)}%
+                        {((holdOutResult.holdOutPaidAcceptanceRate ?? holdOutResult.holdOutAcceptanceRate) * 100).toFixed(0)}%
                       </span>
                     </div>
                     <span className="text-[11px] font-mono text-zinc-500 mt-1 block">
-                      Spread: [{(holdOutResult.acceptanceRateSpread.min * 100).toFixed(0)}% – {(holdOutResult.acceptanceRateSpread.max * 100).toFixed(0)}%]
+                      Overall Adoption: {(holdOutResult.holdOutAcceptanceRate * 100).toFixed(0)}% (Spread: [{(holdOutResult.acceptanceRateSpread.min * 100).toFixed(0)}% – {(holdOutResult.acceptanceRateSpread.max * 100).toFixed(0)}%])
                     </span>
                   </div>
 
@@ -681,7 +665,7 @@ export default function SyntheticLabPage() {
                       <span>Hold-Out Panel Verified</span>
                     </div>
                     <p className="text-[11px] text-zinc-300 mt-1">
-                      5 distinct personas in Cohort B evaluated the rewrite without prior exposure.
+                      {holdOutResult.holdOutPersonas.length} distinct personas in Cohort B evaluated the rewrite without prior exposure.
                     </p>
                   </div>
                 </div>
@@ -813,7 +797,14 @@ export default function SyntheticLabPage() {
                         <span className={`font-mono text-[10px] mt-0.5 ${item.isMatched ? 'text-emerald-400 font-bold' : 'text-zinc-600'}`}>
                           {item.isMatched ? '✓' : '○'}
                         </span>
-                        <span className={item.isMatched ? 'text-zinc-200' : 'text-zinc-500'}>{item.item}</span>
+                        <div className="flex-1">
+                          <span className={item.isMatched ? 'text-zinc-200' : 'text-zinc-500'}>{item.title}</span>
+                          {item.isMatched && item.matchedObjection && (
+                            <span className="text-[10px] text-emerald-400/90 block italic mt-0.5">
+                              &ldquo;{item.matchedObjection.substring(0, 95)}...&rdquo;
+                            </span>
+                          )}
+                        </div>
                       </div>
                     ))
                   ) : (

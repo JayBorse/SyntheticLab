@@ -5,10 +5,11 @@ const FAST_MODEL_ID = process.env.NEBIUS_FAST_MODEL_ID || 'nvidia/NVIDIA-Nemotro
 
 export async function generateSyntheticPersonas(
   input: SimulationInput,
-  options?: { count?: number; isHoldOut?: boolean }
+  options?: { count?: number; isHoldOut?: boolean; excludeNames?: Set<string> }
 ): Promise<SyntheticPersona[]> {
-  const count = options?.count || 5;
+  const count = options?.count || 10;
   const isHoldOut = options?.isHoldOut || false;
+  const excludeNames = options?.excludeNames;
 
   const prompt = `You are an expert market analyst and organizational sociologist.
 Based on the following product pitch, generate ${count} DISTINCT, HETEROGENEOUS synthetic decision-maker personas who would realistically evaluate this purchase.
@@ -21,9 +22,9 @@ Proposed Price: $${input.proposedPrice} per ${input.billingPeriod}
 Target Audience: ${input.targetAudience}
 
 REQUIREMENTS:
-1. Personas must have conflicting priorities (e.g. one is obsessed with cash-flow/budget, one cares about developer UX/latency, one is paranoid about security/compliance, one represents SMB frugality, one represents enterprise procurement).
+1. Generate ${count} personas across these core decision-maker roles (approx 2 per role): enterprise_cfo, staff_engineer, security_lead, smb_founder, procurement_director, devops_lead.
 2. Give each persona realistic budget ceilings, risk tolerances, and specific pain points.
-3. ${isHoldOut ? 'This is a FRESH HOLD-OUT PANEL. Ensure these personas have distinct organizational perspectives from standard buyer personas.' : 'Create standard representative buyers.'}
+3. ${isHoldOut ? 'This is a FRESH HOLD-OUT COMMITTEE (Cohort B). Ensure distinct organizational profiles from standard buyer cohorts.' : 'Create standard representative buyer committee (Cohort A).'}
 
 You MUST return a JSON object with a "personas" key containing an array of ${count} objects matching this exact structure:
 {
@@ -57,7 +58,7 @@ Return ONLY valid JSON.`;
         { role: 'user', content: prompt },
       ],
       {
-        modelId: FAST_MODEL_ID, // Use fast Nano model on Token Factory for persona synthesis
+        modelId: FAST_MODEL_ID,
         responseFormat: 'json_object',
         temperature: isHoldOut ? 0.7 : 0.4,
       }
@@ -67,28 +68,34 @@ Return ONLY valid JSON.`;
     const parsed = JSON.parse(jsonText);
 
     if (Array.isArray(parsed.personas) && parsed.personas.length > 0) {
-      const generated: SyntheticPersona[] = parsed.personas.map((p: Partial<SyntheticPersona>, idx: number) => ({
-        id: `persona_${isHoldOut ? 'holdout_' : ''}${Date.now()}_${idx}`,
-        name: p.name || `Persona ${idx + 1}`,
-        role: p.role || (idx === 0 ? 'enterprise_cfo' : idx === 1 ? 'staff_engineer' : 'smb_founder'),
-        title: p.title || 'Technical Decision Maker',
-        companyProfile: p.companyProfile || 'Growth Tech Company',
-        budgetCeiling: typeof p.budgetCeiling === 'number' ? p.budgetCeiling : input.proposedPrice * 1.5,
-        budgetPeriod: input.billingPeriod,
-        riskTolerance: p.riskTolerance || (idx % 2 === 0 ? 'low' : 'medium'),
-        primaryConstraint: p.primaryConstraint || 'Budget and security approvals required',
-        existingStack: Array.isArray(p.existingStack) ? p.existingStack : ['Cloud Infra', 'GitHub'],
-        evaluationCriteria: Array.isArray(p.evaluationCriteria) ? p.evaluationCriteria : ['Price', 'Reliability'],
-        isHoldOut,
-      }));
+      const generated: SyntheticPersona[] = parsed.personas.map((p: Partial<SyntheticPersona>, idx: number) => {
+        let name = p.name || `Persona ${idx + 1}`;
+        if (excludeNames && excludeNames.has(name.toLowerCase())) {
+          name = `${name} (Cohort B #${idx + 1})`;
+        }
+        return {
+          id: `persona_${isHoldOut ? 'holdout_' : ''}${Date.now()}_${idx}`,
+          name,
+          role: p.role || (idx % 5 === 0 ? 'enterprise_cfo' : idx % 5 === 1 ? 'staff_engineer' : idx % 5 === 2 ? 'security_lead' : idx % 5 === 3 ? 'smb_founder' : 'procurement_director'),
+          title: p.title || 'Technical Decision Maker',
+          companyProfile: p.companyProfile || 'Growth Tech Company',
+          budgetCeiling: typeof p.budgetCeiling === 'number' ? p.budgetCeiling : input.proposedPrice * 1.5,
+          budgetPeriod: input.billingPeriod,
+          riskTolerance: p.riskTolerance || (idx % 2 === 0 ? 'low' : 'medium'),
+          primaryConstraint: p.primaryConstraint || 'Budget and security approvals required',
+          existingStack: Array.isArray(p.existingStack) ? p.existingStack : ['Cloud Infra', 'GitHub'],
+          evaluationCriteria: Array.isArray(p.evaluationCriteria) ? p.evaluationCriteria : ['Price', 'Reliability'],
+          isHoldOut,
+        };
+      });
 
       if (generated.length >= count) {
         return generated.slice(0, count);
       }
 
       // If model returned fewer than requested count, augment with distinct fallback roles
-      const existingRoles = new Set(generated.map((g) => g.role));
-      const fallbacks = getFallbackPersonas(input, count, isHoldOut).filter((f) => !existingRoles.has(f.role));
+      const existingNames = new Set(generated.map((g) => g.name.toLowerCase()));
+      const fallbacks = getFallbackPersonas(input, count, isHoldOut).filter((f) => !existingNames.has(f.name.toLowerCase()));
       return [...generated, ...fallbacks].slice(0, count);
     }
   } catch (err) {
@@ -114,12 +121,12 @@ function cleanJsonText(text: string): string {
 function getFallbackPersonas(input: SimulationInput, count: number, isHoldOut: boolean): SyntheticPersona[] {
   const baseArchetypes: SyntheticPersona[] = [
     {
-      id: `p_cfo_${Date.now()}`,
+      id: `p_cfo1_${Date.now()}`,
       name: isHoldOut ? 'Elena Rostova' : 'Marcus Vance',
       role: 'enterprise_cfo',
       title: isHoldOut ? 'Chief Financial Officer' : 'VP of Finance & Operations',
-      companyProfile: 'Mid-Market SaaS ($20M ARR, 150 employees)',
-      budgetCeiling: Math.round(input.proposedPrice * 1.2),
+      companyProfile: isHoldOut ? 'Enterprise Cloud Infrastructure ($50M ARR)' : 'Mid-Market SaaS ($20M ARR, 150 employees)',
+      budgetCeiling: Math.round(input.proposedPrice * 1.5),
       budgetPeriod: input.billingPeriod,
       riskTolerance: 'low',
       primaryConstraint: 'Demands transparent, predictable unit costs with no unbudgeted variable spikes.',
@@ -128,12 +135,12 @@ function getFallbackPersonas(input: SimulationInput, count: number, isHoldOut: b
       isHoldOut,
     },
     {
-      id: `p_eng_${Date.now()}`,
+      id: `p_eng1_${Date.now()}`,
       name: isHoldOut ? 'Devon Park' : 'Alex Rivera',
       role: 'staff_engineer',
       title: isHoldOut ? 'Principal Systems Architect' : 'Staff Backend Engineer',
-      companyProfile: 'High-Scale AI Startup (Series A)',
-      budgetCeiling: Math.round(input.proposedPrice * 2.0),
+      companyProfile: isHoldOut ? 'Distributed Systems Unicorn' : 'High-Scale AI Startup (Series A)',
+      budgetCeiling: Math.round(input.proposedPrice * 2.5),
       budgetPeriod: input.billingPeriod,
       riskTolerance: 'high',
       primaryConstraint: 'Zero patience for high p99 latency, proprietary lock-in, or poor SDK documentation.',
@@ -142,12 +149,12 @@ function getFallbackPersonas(input: SimulationInput, count: number, isHoldOut: b
       isHoldOut,
     },
     {
-      id: `p_sec_${Date.now()}`,
+      id: `p_sec1_${Date.now()}`,
       name: isHoldOut ? 'Liam Gallagher' : 'Rachel O\'Connor',
       role: 'security_lead',
       title: isHoldOut ? 'Director of Information Security' : 'Head of SecOps',
-      companyProfile: 'HealthTech / FinTech SaaS',
-      budgetCeiling: Math.round(input.proposedPrice * 1.5),
+      companyProfile: isHoldOut ? 'FinTech Banking Infrastructure' : 'HealthTech / HIPAA SaaS',
+      budgetCeiling: Math.round(input.proposedPrice * 1.8),
       budgetPeriod: input.billingPeriod,
       riskTolerance: 'low',
       primaryConstraint: 'Data must never leave customer VPC or be used for public model retraining.',
@@ -156,12 +163,12 @@ function getFallbackPersonas(input: SimulationInput, count: number, isHoldOut: b
       isHoldOut,
     },
     {
-      id: `p_smb_${Date.now()}`,
+      id: `p_smb1_${Date.now()}`,
       name: isHoldOut ? 'Tariq Al-Mansoor' : 'Chloe Bennet',
       role: 'smb_founder',
-      title: isHoldOut ? 'Bootstrapped Founder' : 'Solo Founder & CEO',
-      companyProfile: 'Early-stage Micro-SaaS ($15k MRR, 2 team members)',
-      budgetCeiling: Math.round(input.proposedPrice * 0.6),
+      title: isHoldOut ? 'Bootstrapped Founder & CTO' : 'Solo Founder & CEO',
+      companyProfile: isHoldOut ? 'Self-funded Micro-SaaS ($30k MRR)' : 'Early-stage Micro-SaaS ($15k MRR, 2 team members)',
+      budgetCeiling: Math.round(input.proposedPrice * 0.8),
       budgetPeriod: input.billingPeriod,
       riskTolerance: 'medium',
       primaryConstraint: 'Extremely cash-sensitive; actively seeks free tiers or open-source self-hosted alternatives.',
@@ -170,17 +177,87 @@ function getFallbackPersonas(input: SimulationInput, count: number, isHoldOut: b
       isHoldOut,
     },
     {
-      id: `p_devops_${Date.now()}`,
-      name: isHoldOut ? 'Kenji Sato' : 'Dmitri Volkov',
+      id: `p_proc1_${Date.now()}`,
+      name: isHoldOut ? 'Arthur Dent' : 'Victoria Liu',
+      role: 'procurement_director',
+      title: isHoldOut ? 'Head of IT Vendor Procurement' : 'Global Procurement Director',
+      companyProfile: isHoldOut ? 'Global Media Enterprise' : 'Fortune 500 Enterprise IT Division',
+      budgetCeiling: Math.round(input.proposedPrice * 3.0),
+      budgetPeriod: input.billingPeriod,
+      riskTolerance: 'low',
+      primaryConstraint: 'Requires centralized billing, volume discount tiers, and multi-year contract options.',
+      existingStack: ['Coupa', 'ServiceNow', 'AWS Marketplace'],
+      evaluationCriteria: ['Master Services Agreement flexibility', 'Financial escrow / SLA penalties', 'Volume discounting'],
+      isHoldOut,
+    },
+    {
+      id: `p_devops1_${Date.now()}`,
+      name: isHoldOut ? 'Dmitri Volkov' : 'Kenji Sato',
       role: 'devops_lead',
-      title: isHoldOut ? 'Lead Site Reliability Engineer' : 'Lead Infrastructure Engineer',
-      companyProfile: 'E-commerce Infrastructure Platform',
-      budgetCeiling: Math.round(input.proposedPrice * 1.1),
+      title: isHoldOut ? 'Lead Cloud Infrastructure Architect' : 'Lead Site Reliability Engineer',
+      companyProfile: isHoldOut ? 'High-Volume Payment Gateway' : 'E-commerce Infrastructure Platform',
+      budgetCeiling: Math.round(input.proposedPrice * 1.6),
       budgetPeriod: input.billingPeriod,
       riskTolerance: 'low',
       primaryConstraint: 'Refuses to introduce dependencies that require manual operational babysitting.',
       existingStack: ['Terraform', 'Prometheus', 'Grafana', 'AWS EKS'],
       evaluationCriteria: ['Terraform provider support', 'SLA uptime guarantees', 'Automated failover'],
+      isHoldOut,
+    },
+    {
+      id: `p_cfo2_${Date.now()}`,
+      name: isHoldOut ? 'Beatrice Gomez' : 'David Zhang',
+      role: 'enterprise_cfo',
+      title: isHoldOut ? 'VP of Financial Planning & Analysis' : 'Corporate Controller',
+      companyProfile: isHoldOut ? 'Public Tech Holding Co.' : 'Late-Stage Enterprise SaaS',
+      budgetCeiling: Math.round(input.proposedPrice * 2.0),
+      budgetPeriod: input.billingPeriod,
+      riskTolerance: 'low',
+      primaryConstraint: 'Demands hard spend caps to prevent month-end cloud invoice shock.',
+      existingStack: ['NetSuite', 'Anaplan', 'AWS Cost Explorer'],
+      evaluationCriteria: ['Cost predictability', 'Capped usage billing', 'Audit trails'],
+      isHoldOut,
+    },
+    {
+      id: `p_eng2_${Date.now()}`,
+      name: isHoldOut ? 'Caleb Wright' : 'Priya Sharma',
+      role: 'staff_engineer',
+      title: isHoldOut ? 'Staff Distributed Systems Engineer' : 'Principal AI Systems Architect',
+      companyProfile: isHoldOut ? 'Autonomous Agent Framework Lab' : 'Enterprise Search Platform',
+      budgetCeiling: Math.round(input.proposedPrice * 2.0),
+      budgetPeriod: input.billingPeriod,
+      riskTolerance: 'high',
+      primaryConstraint: 'Requires native TypeScript and Python SDKs with sub-10ms benchmark proof.',
+      existingStack: ['Rust', 'Python', 'ClickHouse', 'Vector DBs'],
+      evaluationCriteria: ['Throughput at scale', 'Clean developer ergonomics', 'Zero lock-in export'],
+      isHoldOut,
+    },
+    {
+      id: `p_sec2_${Date.now()}`,
+      name: isHoldOut ? 'Ingrid Lindqvist' : 'Marcus Bell',
+      role: 'security_lead',
+      title: isHoldOut ? 'Lead Security & Privacy Architect' : 'VP of Security & Compliance',
+      companyProfile: isHoldOut ? 'European Telecommunications SaaS' : 'Identity & Access Platform',
+      budgetCeiling: Math.round(input.proposedPrice * 2.2),
+      budgetPeriod: input.billingPeriod,
+      riskTolerance: 'low',
+      primaryConstraint: 'GDPR / HIPAA data residency compliance with customer-managed encryption keys.',
+      existingStack: ['HashiCorp Vault', 'AWS KMS', 'Wiz'],
+      evaluationCriteria: ['SOC-2 Type II', 'CMEK encryption', 'Zero-retention model policy'],
+      isHoldOut,
+    },
+    {
+      id: `p_smb2_${Date.now()}`,
+      name: isHoldOut ? 'Maya Lin' : 'Julian Vance',
+      role: 'smb_founder',
+      title: isHoldOut ? 'Founder & CEO, Micro Agency' : 'Co-founder & CTO, Seed Stage',
+      companyProfile: isHoldOut ? 'AI Workflow Agency (8 people)' : 'Seed-Stage Agent Studio ($500k raised)',
+      budgetCeiling: Math.round(input.proposedPrice * 1.0),
+      budgetPeriod: input.billingPeriod,
+      riskTolerance: 'medium',
+      primaryConstraint: 'Needs instant setup without waiting for enterprise sales demos.',
+      existingStack: ['Node.js', 'Postgres', 'Vercel'],
+      evaluationCriteria: ['Credit-card self-serve', 'Generous developer tier', 'Fast time-to-value'],
       isHoldOut,
     },
   ];

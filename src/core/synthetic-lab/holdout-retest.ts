@@ -95,8 +95,12 @@ export async function executeHoldOutRetest(
     }
   });
 
-  const deltaPct = Math.round((holdOutVerdict.acceptanceRate - initialVerdict.acceptanceRate) * 100);
-  const deltaSummary = `Hold-Out panel adoption shifted by ${deltaPct >= 0 ? '+' : ''}${deltaPct}% (from ${(initialVerdict.acceptanceRate * 100).toFixed(0)}% to ${(holdOutVerdict.acceptanceRate * 100).toFixed(0)}%). Resolved ${resolvedCount} of ${initialVerdict.topObjections.length} fatal objections against blinded Cohort B.`;
+  const initialPaidRate = initialVerdict.paidAcceptanceRate ?? initialVerdict.acceptanceRate;
+  const holdOutPaidRate = holdOutVerdict.paidAcceptanceRate ?? holdOutVerdict.acceptanceRate;
+  const deltaPaidPct = Math.round((holdOutPaidRate - initialPaidRate) * 100);
+  const deltaOverallPct = Math.round((holdOutVerdict.acceptanceRate - initialVerdict.acceptanceRate) * 100);
+
+  const deltaSummary = `Hold-Out panel paid commercial adoption shifted by ${deltaPaidPct >= 0 ? '+' : ''}${deltaPaidPct}% (overall adoption shift: ${deltaOverallPct >= 0 ? '+' : ''}${deltaOverallPct}%, from ${(initialPaidRate * 100).toFixed(0)}% to ${(holdOutPaidRate * 100).toFixed(0)}%). Resolved ${resolvedCount} of ${initialVerdict.topObjections.length} fatal objections against blinded Cohort B.`;
 
   return {
     holdOutPersonas,
@@ -104,6 +108,8 @@ export async function executeHoldOutRetest(
     holdOutVerdict,
     initialAcceptanceRate: initialVerdict.acceptanceRate,
     holdOutAcceptanceRate: holdOutVerdict.acceptanceRate,
+    initialPaidAcceptanceRate: initialPaidRate,
+    holdOutPaidAcceptanceRate: holdOutPaidRate,
     initialMedianPrice: initialVerdict.priceRange.median,
     holdOutMedianPrice: medianPrice,
     acceptanceRateSpread: {

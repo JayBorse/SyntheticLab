@@ -3,8 +3,19 @@ import { SimulationInput, SimulationRunEvent, SyntheticPersona, GroundedEvidence
 import { generateSyntheticPersonas } from '@/core/synthetic-lab/persona-generator';
 import { scoutMarketEvidence } from '@/core/synthetic-lab/market-scout';
 import { evaluatePersonaReaction, computeSimulationVerdict } from '@/core/synthetic-lab/simulation-engine';
+import { checkSimulationRateLimit } from '@/core/security/rate-limiter';
 
 export async function POST(req: NextRequest) {
+  const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || '127.0.0.1';
+  const rateLimit = checkSimulationRateLimit(clientIp);
+
+  if (!rateLimit.allowed) {
+    return new Response(JSON.stringify({ error: rateLimit.reason }), {
+      status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   const body = await req.json().catch(() => ({}));
   const input: SimulationInput = {
     productName: body.productName || 'VectorStream AI',
@@ -43,15 +54,15 @@ export async function POST(req: NextRequest) {
         // Stage 2: Spawning Personas (Nebius Token Factory)
         emit({
           stage: 'spawning_personas',
-          message: `Spawning heterogeneous buyer swarm using Nebius Token Factory (${fastModel})...`,
+          message: `Spawning symmetric 10-persona decision-maker committee on Nebius Token Factory (${fastModel})...`,
           timestamp: Date.now(),
         });
 
-        const personas: SyntheticPersona[] = await generateSyntheticPersonas(input, { count: 5 });
+        const personas: SyntheticPersona[] = await generateSyntheticPersonas(input, { count: 10 });
 
         emit({
           stage: 'spawning_personas',
-          message: `Formulated ${personas.length} distinct personas (CFO, Staff Eng, SecOps, SMB Founder, DevOps Lead).`,
+          message: `Formulated ${personas.length} distinct personas across matched decision-maker roles (CFOs, Staff Engineers, SecOps, SMB Founders, Procurement).`,
           timestamp: Date.now(),
           data: { personas },
         });

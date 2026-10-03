@@ -230,25 +230,28 @@ export const SIMULATION_PRESETS: SimulationPreset[] = [
         rejectCount: 2,
         hesitantCount: 2,
         acceptanceRate: 0.2,
+        paidAdoptCount: 1,
+        freeAdoptCount: 0,
+        paidAcceptanceRate: 0.2,
         priceRange: { min: 25, median: 35, max: 40, currency: 'USD', period: 'month' },
         topObjections: [
           {
             objection: 'Uncapped variable query billing creates runaway budget risk if autonomous agent enters query loop',
             frequency: 2,
             severity: 'blocker',
-            citedSources: ['https://pinecone.io/pricing'],
+            citedSources: ['https://www.pinecone.io/pricing/'],
           },
           {
             objection: 'Cloud vector service latency overhead during multi-step reasoning hops',
             frequency: 2,
             severity: 'concern',
-            citedSources: ['https://www.reddit.com/r/vectordatabase/comments/1l7rods/rate_databases'],
+            citedSources: ['https://www.reddit.com/r/vectordatabase/comments/1l7rods/rate_databases/'],
           },
           {
             objection: 'Absence of explicit Zero Data Retention agreement for raw vectorized customer prompts',
             frequency: 1,
             severity: 'blocker',
-            citedSources: ['https://www.reddit.com/r/vectordatabase/comments/1sfv5x1/benchmark_pgvector_vs_pinecone_vs_qdrant_vs'],
+            citedSources: ['https://www.reddit.com/r/vectordatabase/comments/1sfv5x1/benchmark_pgvector_vs_pinecone_vs_qdrant_vs/'],
           },
         ],
         suggestedActionItems: [
@@ -439,6 +442,9 @@ export const SIMULATION_PRESETS: SimulationPreset[] = [
           rejectCount: 0,
           hesitantCount: 1,
           acceptanceRate: 0.8,
+          paidAdoptCount: 4,
+          freeAdoptCount: 0,
+          paidAcceptanceRate: 0.8,
           priceRange: { min: 35, median: 35, max: 50, currency: 'USD', period: 'month' },
           topObjections: [
             {
@@ -452,6 +458,8 @@ export const SIMULATION_PRESETS: SimulationPreset[] = [
         },
         initialAcceptanceRate: 0.2,
         holdOutAcceptanceRate: 0.8,
+        initialPaidAcceptanceRate: 0.2,
+        holdOutPaidAcceptanceRate: 0.8,
         initialMedianPrice: 35,
         holdOutMedianPrice: 35,
         acceptanceRateSpread: { min: 0.7, median: 0.8, max: 0.9 },
@@ -460,7 +468,7 @@ export const SIMULATION_PRESETS: SimulationPreset[] = [
         totalInitialObjections: 3,
         isHoldOutVerified: true,
         deltaSummary:
-          'Hold-Out panel adoption shifted by +60% (from 20% to 80%). Resolved 3 of 3 fatal objections against blinded Cohort B.',
+          'Hold-Out panel paid commercial adoption shifted by +60% (from 20% to 80%). Resolved 3 of 3 fatal objections against blinded Cohort B.',
       },
     },
   },

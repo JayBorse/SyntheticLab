@@ -8,8 +8,19 @@ import {
 } from '@/core/synthetic-lab/types';
 import { optimizeProductPitch } from '@/core/synthetic-lab/optimizer';
 import { executeHoldOutRetest } from '@/core/synthetic-lab/holdout-retest';
+import { checkSimulationRateLimit } from '@/core/security/rate-limiter';
 
 export async function POST(req: NextRequest) {
+  const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || '127.0.0.1';
+  const rateLimit = checkSimulationRateLimit(clientIp);
+
+  if (!rateLimit.allowed) {
+    return new Response(JSON.stringify({ error: rateLimit.reason }), {
+      status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   const body = await req.json().catch(() => ({}));
   const input: SimulationInput = body.input;
   const verdict: SimulationVerdict = body.verdict;

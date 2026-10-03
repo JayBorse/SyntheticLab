@@ -61,7 +61,10 @@ export interface SimulationVerdict {
   adoptCount: number;
   rejectCount: number;
   hesitantCount: number;
-  acceptanceRate: number; // e.g., 0.4 for 40%
+  acceptanceRate: number; // Overall adopt / total (e.g., 0.4 for 40%)
+  paidAdoptCount: number; // Adopters with acceptablePrice > 0 (commercial conversion)
+  freeAdoptCount: number; // Adopters who only accept at $0 (free-tier only)
+  paidAcceptanceRate: number; // paidAdoptCount / total
   priceRange: {
     min: number;
     median: number;
@@ -109,6 +112,8 @@ export interface HoldOutRetestResult {
   holdOutVerdict: SimulationVerdict;
   initialAcceptanceRate: number;
   holdOutAcceptanceRate: number;
+  initialPaidAcceptanceRate: number;
+  holdOutPaidAcceptanceRate: number;
   initialMedianPrice: number;
   holdOutMedianPrice: number;
   acceptanceRateSpread: {
