@@ -29,6 +29,11 @@ import {
   calculateNetValueDelta,
 } from '../src/core/synthetic-lab/negotiation-engine';
 import { normalizeUrl, extractProductFromUrl } from '../src/core/synthetic-lab/url-extractor';
+import {
+  executeNebiusSandboxPoc,
+  isTechnicalBlocker,
+  determineVerificationScope,
+} from '../src/core/nebius/sandbox-runner';
 
 describe('SyntheticLab Core Architecture & Verification Suite', () => {
   it('1. Presets have complete inputs and pre-warmed Tavily market evidence', () => {
@@ -1553,6 +1558,36 @@ describe('SyntheticLab Core Architecture & Verification Suite', () => {
     assert.strictEqual(result.input.proposedPrice, 499, 'Predispute entry commercial price must be $499, not $49');
     assert.ok(result.input.pricingTiers?.includes('499'), 'Pricing tiers must detail the $499 Decide plan');
     assert.ok(result.input.pricingTiers?.includes('999'), 'Pricing tiers must detail the $999 Fight plan');
+  });
+
+  it('38. Nebius Cloud Sandbox Due Diligence: Technical blockers trigger microVM benchmark execution with deterministic receipts and exit code 0', async () => {
+    // 1. Technical blocker detection
+    const latencyBlocker = 'Vendor claims < 5ms p99 latency under heavy load without proof';
+    const securityBlocker = 'Multi-tenant architecture lacks verified customer data isolation and SOC-2 audit guarantees';
+    const budgetBlocker = 'Proposed price of $299/month exceeds our team discretionary budget ceiling';
+
+    assert.strictEqual(isTechnicalBlocker(latencyBlocker, 'staff_engineer'), true);
+    assert.strictEqual(isTechnicalBlocker(securityBlocker, 'security_lead'), true);
+    assert.strictEqual(isTechnicalBlocker(budgetBlocker, 'enterprise_cfo'), false);
+
+    // 2. Verification scope classification
+    assert.strictEqual(determineVerificationScope(latencyBlocker), 'performance_sla');
+    assert.strictEqual(determineVerificationScope(securityBlocker), 'security_isolation');
+
+    // 3. Execution of Nebius Sandbox microVM benchmark
+    const runResult = await executeNebiusSandboxPoc({
+      blockerText: latencyBlocker,
+      personaRole: 'staff_engineer',
+      productName: 'ApexRelay',
+    });
+
+    assert.ok(runResult.telemetry.sandboxId.startsWith('nebius-vm-'), 'Must assign valid Nebius Sandbox MicroVM ID');
+    assert.strictEqual(runResult.telemetry.status, 'passed', 'Execution status must pass');
+    assert.strictEqual(runResult.telemetry.exitCode, 0, 'Exit code must be 0');
+    assert.ok(runResult.telemetry.p99LatencyMs > 0 && runResult.telemetry.p99LatencyMs <= 5.0, 'p99 latency must be under SLA threshold');
+    assert.ok(runResult.telemetry.receiptHash.startsWith('sha256:'), 'Must generate cryptographic receipt hash');
+    assert.ok(runResult.logs.length >= 5, 'Must generate full streamable terminal execution logs');
+    assert.ok(runResult.resolutionSummary.includes('Verified via Nebius Sandbox Telemetry'), 'Resolution summary must reference Nebius Sandbox');
   });
 });
 

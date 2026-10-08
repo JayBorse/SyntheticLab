@@ -74,6 +74,18 @@ Rather than relying on a single generic model, SyntheticLab implements deliberat
 
 ---
 
+## 🖥️ Nebius Cloud Sandboxes: Autonomous Technical Due Diligence (PoC Runner)
+
+In enterprise B2B sales, the **CFO** evaluates commercial pricing, but the **Staff SRE / Security Director** demands proof before signing: *"You claim <5ms latency and zero memory leaks. That sounds like pitch deck marketing fluff."*
+
+SyntheticLab equips technical buyer personas with **Autonomous Nebius Cloud Sandboxes (ConTree Runtime)**:
+1. **Ephemeral MicroVM Allocation**: When an SRE or SecOps buyer raises an architectural objection, the founder or buyer triggers a Nebius Sandbox PoC.
+2. **Hardware-Isolated Execution**: Boots an ephemeral container with `cgroup-v2` hardware isolation and runs automated synthetic benchmarks (concurrency sweeps, dependency CVE audits, tenant memory isolation checks).
+3. **Cryptographic Execution Receipts**: Measures real p99 latency (e.g. 3.2ms), throughput (14,200 ops/sec), and RAM deltas, sealed with a `sha256` execution hash.
+4. **Live Blocker Resolution**: The buyer persona inspects the execution receipt in the interactive sparring terminal, clearing their fatal blocker with empirical proof.
+
+---
+
 ## 🔍 Deep Tavily Integration (Best Use of Tavily Track)
 
 Tavily is not used as a decorative search box. It serves as the **epistemic anchor** of the simulation:
@@ -102,7 +114,7 @@ Tavily is not used as a decorative search box. It serves as the **epistemic anch
 
 ### 2. Installation
 ```bash
-git clone https://github.com/your-username/SyntheticLab.git
+git clone https://github.com/JayBorse/SyntheticLab.git
 cd SyntheticLab
 npm install
 ```

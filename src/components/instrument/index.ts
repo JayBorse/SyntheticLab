@@ -13,3 +13,4 @@ export * from './NegotiationModal';
 export * from './AdversarialBenchmarkModal';
 export * from './NebiusArchitectureModal';
 export * from './SwarmArenaView';
+export * from './SandboxTerminalModal';

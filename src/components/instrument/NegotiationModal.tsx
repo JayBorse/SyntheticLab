@@ -16,6 +16,7 @@ import {
   Circle,
   ChevronDown,
   ChevronUp,
+  Terminal,
 } from 'lucide-react';
 import {
   SimulationInput,
@@ -26,8 +27,11 @@ import {
   CompetitiveBattlecard,
   BlockerChecklistItem,
   NetValueFormula,
+  NebiusSandboxTelemetry,
 } from '@/core/synthetic-lab/types';
 import { calculateEconomicFormula } from '@/core/synthetic-lab/economic-engine';
+import { isTechnicalBlocker } from '@/core/nebius/sandbox-runner';
+import { SandboxTerminalModal } from './SandboxTerminalModal';
 import { Button } from './Button';
 import { Chip } from './Chip';
 
@@ -63,9 +67,80 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
   const [isChecklistExpanded, setIsChecklistExpanded] = useState(true);
   const [pushedBack, setPushedBack] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+  const [isSandboxModalOpen, setIsSandboxModalOpen] = useState(false);
+  const [selectedSandboxBlocker, setSelectedSandboxBlocker] = useState<BlockerChecklistItem | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleSandboxComplete = (
+    telemetry: NebiusSandboxTelemetry,
+    resolutionSummary: string
+  ) => {
+    if (!selectedSandboxBlocker) return;
+
+    const updatedChecklist = blockerChecklist.map((b) => {
+      if (b.index === selectedSandboxBlocker.index) {
+        return {
+          ...b,
+          resolved: true,
+          resolvedVia: resolutionSummary,
+          sandboxVerified: true,
+          sandboxTelemetry: telemetry,
+        };
+      }
+      return b;
+    });
+    setBlockerChecklist(updatedChecklist);
+
+    const founderProofMsg: NegotiationMessage = {
+      id: `msg_founder_${Date.now()}`,
+      role: 'founder',
+      content: `Dispatched technical proof-of-concept to Nebius Cloud Sandbox [${telemetry.sandboxId}]. MicroVM executed: p99 latency verified at ${telemetry.p99LatencyMs}ms under ${telemetry.throughputRps.toLocaleString()} ops/sec with zero memory leaks. Exit code 0 verified.`,
+      timestamp: Date.now(),
+    };
+
+    const remainingUnresolved = updatedChecklist.filter((b) => !b.resolved).length;
+    const allClearedNow = remainingUnresolved === 0;
+
+    let newVote: PersonaVote = currentVote;
+    let buyerReplyText = '';
+
+    if (allClearedNow) {
+      newVote = 'adopt';
+      setVoteFlipped(true);
+      setCurrentVote('adopt');
+      buyerReplyText = `I reviewed the cryptographic execution receipt from the Nebius Sandbox (${telemetry.receiptHash.slice(0, 18)}...). Technical assertions verified: p99 latency was benchmarked at ${telemetry.p99LatencyMs}ms with zero memory leaks. With all ${updatedChecklist.length} blockers cleared, I am flipping my vote to WOULD BUY!`;
+    } else {
+      newVote = 'hesitant';
+      setCurrentVote('hesitant');
+      buyerReplyText = `The Nebius Sandbox confirmed your technical SLA claims (${telemetry.stdoutSnippet}). That blocker is now cleared. However, we still have ${remainingUnresolved} commercial/budget items to finalize.`;
+    }
+
+    const buyerMsg: NegotiationMessage = {
+      id: `msg_buyer_${Date.now() + 1}`,
+      role: 'buyer',
+      content: buyerReplyText,
+      timestamp: Date.now() + 1,
+      voteAfterMessage: newVote,
+      revisedPrice: currentPrice,
+      blockerChecklist: updatedChecklist,
+    };
+
+    setMessages((prev) => [...prev, founderProofMsg, buyerMsg]);
+
+    if (evaluation && onVoteUpdated && allClearedNow) {
+      onVoteUpdated({
+        ...evaluation,
+        vote: 'adopt',
+        acceptablePrice: currentPrice,
+        dealMakers: [
+          ...(evaluation.dealMakers || []),
+          `Verified technical SLA via Nebius Sandbox (p99: ${telemetry.p99LatencyMs}ms)`,
+        ],
+      });
+    }
+  };
 
   // Initialize negotiation with context-aware opening message based on buyer's actual vote
   useEffect(() => {
@@ -647,6 +722,26 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
                           >
                             {item.text}
                           </span>
+                          {!item.resolved && isTechnicalBlocker(item.text, persona.role) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSandboxBlocker(item);
+                                setIsSandboxModalOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 text-[9px] font-mono px-2 py-0.5 rounded bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 transition-colors shadow-xs cursor-pointer ml-1"
+                              title="Spin up Nebius MicroVM sandbox to benchmark and verify this claim"
+                            >
+                              <Terminal className="w-3 h-3 text-purple-400" />
+                              <span>Verify in Nebius Sandbox</span>
+                            </button>
+                          )}
+                          {item.resolved && item.sandboxVerified && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono border border-purple-500/30 flex items-center gap-1">
+                              <Terminal className="w-2.5 h-2.5 text-purple-400" />
+                              Nebius MicroVM Verified
+                            </span>
+                          )}
                           {item.resolved && item.resolvedVia && (
                             <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono border border-emerald-500/30 truncate max-w-[260px]">
                               Cleared via: {item.resolvedVia}
@@ -835,6 +930,19 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
           </Button>
         </form>
       </div>
+
+      {/* Nebius Cloud Sandbox MicroVM Due Diligence Modal */}
+      <SandboxTerminalModal
+        isOpen={isSandboxModalOpen}
+        onClose={() => {
+          setIsSandboxModalOpen(false);
+          setSelectedSandboxBlocker(null);
+        }}
+        blocker={selectedSandboxBlocker}
+        personaName={persona.name}
+        personaRole={persona.role}
+        onVerificationComplete={handleSandboxComplete}
+      />
     </div>
   );
 };

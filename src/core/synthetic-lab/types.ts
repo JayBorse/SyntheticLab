@@ -221,11 +221,32 @@ export interface CompetitiveBattlecard {
   generatedAt?: number;
 }
 
+export interface NebiusSandboxTelemetry {
+  sandboxId: string;
+  environment: string;
+  status: 'passed' | 'failed' | 'timeout';
+  exitCode: number;
+  durationMs: number;
+  bootLatencyMs: number;
+  p99LatencyMs: number;
+  throughputRps: number;
+  memoryDeltaMb: number;
+  cpuUtilizationPct: number;
+  commandExecuted: string;
+  verifiedAt: number;
+  receiptHash: string;
+  stdoutSnippet: string;
+  verificationScope: 'performance_sla' | 'security_isolation' | 'dependency_audit' | 'sdk_overhead';
+}
+
 export interface BlockerChecklistItem {
   index: number;
   text: string;
   resolved: boolean;
   resolvedVia?: string;
+  requiresSandbox?: boolean;
+  sandboxVerified?: boolean;
+  sandboxTelemetry?: NebiusSandboxTelemetry;
 }
 
 export type ValueBenefitType =

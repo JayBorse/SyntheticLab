@@ -156,9 +156,9 @@ export const NebiusArchitectureModal: React.FC<NebiusArchitectureModalProps> = (
           {/* Infrastructure Flow Diagram */}
           <div className="p-4 rounded-xl bg-[var(--surface-2)]/40 border border-[var(--border-subtle)] space-y-3">
             <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
-              Execution Lineage
+              Unified Platform Lineage: Inference + Cloud Sandboxes
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 text-xs">
               <div className="p-3 rounded-lg bg-[var(--surface-1)] border border-[var(--border-subtle)] space-y-1">
                 <div className="text-[11px] font-mono text-cyan-400">Step 1: Ingestion</div>
                 <div className="text-xs text-[var(--text-primary)] font-medium">Pitch & WTP Pricing</div>
@@ -171,11 +171,16 @@ export const NebiusArchitectureModal: React.FC<NebiusArchitectureModalProps> = (
               </div>
               <div className="p-3 rounded-lg bg-[var(--surface-1)] border border-[var(--border-subtle)] space-y-1">
                 <div className="text-[11px] font-mono text-purple-400">Step 3: Swarm Audit</div>
-                <div className="text-xs text-[var(--text-primary)] font-medium">Nemotron 120B Swarm</div>
+                <div className="text-xs text-[var(--text-primary)] font-medium">Token Factory 120B</div>
                 <div className="text-[11px] text-[var(--text-tertiary)]">10 parallel persona evaluations</div>
               </div>
               <div className="p-3 rounded-lg bg-[var(--surface-1)] border border-[var(--border-subtle)] space-y-1">
-                <div className="text-[11px] font-mono text-emerald-400">Step 4: Hold-Out</div>
+                <div className="text-[11px] font-mono text-yellow-400">Step 4: Due Diligence</div>
+                <div className="text-xs text-[var(--text-primary)] font-medium">Nebius MicroVM Sandbox</div>
+                <div className="text-[11px] text-[var(--text-tertiary)]">ConTree cgroup-v2 container benchmarks</div>
+              </div>
+              <div className="p-3 rounded-lg bg-[var(--surface-1)] border border-[var(--border-subtle)] space-y-1">
+                <div className="text-[11px] font-mono text-emerald-400">Step 5: Hold-Out</div>
                 <div className="text-xs text-[var(--text-primary)] font-medium">Nemotron 550B + Code</div>
                 <div className="text-[11px] text-[var(--text-tertiary)]">Blinded Cohort B generalization</div>
               </div>
