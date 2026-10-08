@@ -44,26 +44,26 @@ export const Stat: React.FC<StatProps> = ({
 
   return (
     <div
-      className={`p-4 rounded-[var(--radius-lg)] bg-[var(--surface-1)] border border-[var(--border-subtle)] flex flex-col justify-between ${className}`}
+      className={`p-5 sm:p-6 rounded-2xl bg-[var(--surface-1)]/80 backdrop-blur-2xl border border-[var(--border-subtle)] hover:border-[var(--border-medium)] transition-all duration-300 flex flex-col justify-between shadow-sm hover:shadow-md ${className}`}
     >
       <div>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--text-muted)] font-medium">
+          <span className="text-xs font-medium tracking-tight text-[var(--text-secondary)]">
             {label}
           </span>
           {sampleSize && (
-            <span className="text-[10px] font-mono text-[var(--text-muted)]">
-              (n = {sampleSize})
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border-subtle)]">
+              n = {sampleSize}
             </span>
           )}
         </div>
 
-        <div className="mt-2 flex items-baseline gap-1.5">
-          <span className={`text-2xl sm:text-3xl font-bold font-mono tracking-tight num-tabular ${valueColors[variant]}`}>
+        <div className="mt-3 flex items-baseline gap-1.5">
+          <span className={`text-3xl sm:text-4xl font-semibold tracking-tight num-tabular ${valueColors[variant]}`}>
             {value}
           </span>
           {unit && (
-            <span className="text-xs font-mono text-[var(--text-muted)] font-medium">
+            <span className="text-xs text-[var(--text-muted)] font-normal">
               {unit}
             </span>
           )}
@@ -71,15 +71,15 @@ export const Stat: React.FC<StatProps> = ({
       </div>
 
       {range && (
-        <div className="mt-3 pt-3 border-t border-[var(--border-subtle)]">
-          <div className="flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)] mb-1">
-            <span>Range: {range.min}{range.unit || unit || ''}</span>
-            <span>{range.max}{range.unit || unit || ''}</span>
+        <div className="mt-4 pt-3 border-t border-[var(--border-subtle)]">
+          <div className="flex items-center justify-between text-[11px] font-mono text-[var(--text-muted)] mb-1.5">
+            <span>Low: {range.min}{range.unit || unit || ''}</span>
+            <span>High: {range.max}{range.unit || unit || ''}</span>
           </div>
-          <div className="h-1 w-full bg-[var(--surface-3)] rounded-full overflow-hidden">
+          <div className="h-1.5 w-full bg-[var(--surface-3)] rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                variant === 'accent' ? 'bg-[var(--accent)]' : variant === 'amber' ? 'bg-[var(--amber)]' : 'bg-[var(--text-secondary)]'
+              className={`h-full rounded-full transition-all duration-700 ease-out ${
+                variant === 'accent' ? 'bg-[var(--accent)]' : variant === 'amber' ? 'bg-[var(--amber)]' : 'bg-white'
               }`}
               style={{ width: `${rangePercent}%` }}
             />
@@ -88,7 +88,7 @@ export const Stat: React.FC<StatProps> = ({
       )}
 
       {secondaryText && !range && (
-        <p className="mt-2 text-[11px] font-mono text-[var(--text-muted)]">
+        <p className="mt-3 text-xs text-[var(--text-muted)] leading-relaxed">
           {secondaryText}
         </p>
       )}

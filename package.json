@@ -11,7 +11,8 @@
     "test": "tsx --test tests/**/*.test.ts",
     "models": "tsx scripts/list-nebius-models.ts",
     "simulate": "tsx scripts/run-full-simulation.ts",
-    "test:syntheticlab": "tsx scripts/test-syntheticlab.ts"
+    "test:syntheticlab": "tsx scripts/test-syntheticlab.ts",
+    "benchmark:adversarial": "tsx scripts/run-live-adversarial-benchmark.ts"
   },
   "dependencies": {
     "@tavily/core": "^0.7.13",

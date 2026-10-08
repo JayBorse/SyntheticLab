@@ -25,6 +25,36 @@ export async function generateSyntheticPersonas(
   const isHoldOut = options?.isHoldOut || false;
   const excludeNames = options?.excludeNames;
 
+  // Scale gracefully for swarms larger than 20 personas (e.g. 50 or 100) using parallel segmented clusters
+  if (count > 20 && !targetRoles) {
+    const batchSize = 20;
+    const numBatches = Math.ceil(count / batchSize);
+    const segmentThemes = [
+      'High-Growth Tech Startups (Series A-C) & Scaleups',
+      'Global Enterprise & Regulated Cloud Infrastructure',
+      'Mid-Market B2B SaaS, E-Commerce & Digital Agencies',
+      'Technical Teams, Engineering Studios & Consultancies',
+      'Cost-Conscious SMBs, Bootstrapped Founders & Operators',
+    ];
+
+    const batchPromises = Array.from({ length: numBatches }).map(async (_, bIdx) => {
+      const thisBatchCount = Math.min(batchSize, count - bIdx * batchSize);
+      const segment = segmentThemes[bIdx % segmentThemes.length];
+      const batchInput: SimulationInput = {
+        ...input,
+        targetAudience: `${input.targetAudience} (${segment})`,
+      };
+      return generateSyntheticPersonas(batchInput, {
+        ...options,
+        count: thisBatchCount,
+      });
+    });
+
+    const allBatches = await Promise.all(batchPromises);
+    const combined = allBatches.flat();
+    return combined.slice(0, count);
+  }
+
   let roleInstruction = '';
   if (targetRoles && targetRoles.length > 0) {
     roleInstruction = `CRITICAL ROLE & COMPOSITION MIRRORING REQUIREMENT:
@@ -156,15 +186,25 @@ Return ONLY valid JSON.`;
         };
       });
 
-      if (generated.length >= count) {
-        return generated.slice(0, count);
+      let finalPersonas = generated;
+      if (generated.length < count) {
+        const existingNames = new Set(generated.map((g) => g.name.toLowerCase()));
+        const fallbacks = getCalibratedFallbackPersonas(input, count, isHoldOut, targetRoles, excludeNames, mirrorPersonas)
+          .filter((f) => !existingNames.has(f.name.toLowerCase()));
+        finalPersonas = [...generated, ...fallbacks].slice(0, count);
+      } else {
+        finalPersonas = generated.slice(0, count);
       }
 
-      // If model returned fewer than requested count, augment with ICP fallbacks
-      const existingNames = new Set(generated.map((g) => g.name.toLowerCase()));
-      const fallbacks = getCalibratedFallbackPersonas(input, count, isHoldOut, targetRoles, excludeNames, mirrorPersonas)
-        .filter((f) => !existingNames.has(f.name.toLowerCase()));
-      return [...generated, ...fallbacks].slice(0, count);
+      if (targetRoles && targetRoles.length > 0) {
+        finalPersonas.forEach((p, idx) => {
+          if (targetRoles[idx]) {
+            p.role = targetRoles[idx];
+          }
+        });
+      }
+
+      return finalPersonas;
     }
   } catch (err) {
     console.warn('Nebius persona generation failed, using calibrated archetypes fallback:', err);
@@ -239,181 +279,8 @@ function getCalibratedFallbackPersonas(
 
   let archetypes: SyntheticPersona[] = [];
 
-  // A. Mobile / iOS Indie Developer Archetypes
+  // A. E-Commerce / Merchant / Payments / Fraud & Disputes (DisputeVantage, etc.)
   if (
-    combinedText.includes('ios') ||
-    combinedText.includes('app store') ||
-    combinedText.includes('mobile') ||
-    combinedText.includes('swift') ||
-    combinedText.includes('indie dev')
-  ) {
-    archetypes = [
-      // 8 In-Market Indie iOS Personas
-      {
-        id: `p_ios1_${Date.now()}`,
-        name: isHoldOut ? 'Liam Murphy' : 'Chloe Bennet',
-        role: 'solo_founder',
-        title: isHoldOut ? 'Solo Indie iOS Creator' : 'Solo Founder & iOS Developer',
-        companyProfile: isHoldOut ? 'Self-funded App Studio ($12k MRR, 2 utility apps)' : 'Early-stage Micro-SaaS ($15k MRR, 2 utility iOS apps)',
-        budgetCeiling: Math.round(input.proposedPrice * 0.9),
-        budgetPeriod: input.billingPeriod,
-        riskTolerance: 'medium',
-        primaryConstraint: 'Extremely cash-sensitive; wants instant self-serve without multi-month lock-in or sales demos.',
-        existingStack: ['SwiftUI', 'Xcode', 'RevenueCat', 'TestFlight'],
-        evaluationCriteria: ['Transparent pricing', 'Low upfront cost', 'Catches App Store review rejections locally'],
-        isHoldOut,
-        isOutOfMarket: false,
-        audienceMatch: 'in_market',
-      },
-      {
-        id: `p_ios2_${Date.now()}`,
-        name: isHoldOut ? 'Devon Chen' : 'Julian Vance',
-        role: 'app_studio_founder',
-        title: isHoldOut ? 'Boutique iOS Studio Co-Founder' : 'Co-founder, Indie App Studio',
-        companyProfile: isHoldOut ? 'App Studio with 4 utility apps (3 people, $35k MRR)' : 'Seed-Stage Mobile Studio ($500k raised, 3 apps)',
-        budgetCeiling: Math.round(input.proposedPrice * 1.5),
-        budgetPeriod: input.billingPeriod,
-        riskTolerance: 'medium',
-        primaryConstraint: 'Needs hard monthly caps on add-on scans; hates unexpected variable overages.',
-        existingStack: ['Swift', 'Fastlane', 'GitHub Actions', 'PostHog'],
-        evaluationCriteria: ['Predictable cost', 'Fast App Store preflight audit', 'CLI integration'],
-        isHoldOut,
-        isOutOfMarket: false,
-        audienceMatch: 'in_market',
-      },
-      {
-        id: `p_ios3_${Date.now()}`,
-        name: isHoldOut ? 'Siddharth Rao' : 'Marco Rossi',
-        role: 'freelance_ios_engineer',
-        title: isHoldOut ? 'Contract iOS Developer' : 'Senior iOS Freelancer',
-        companyProfile: isHoldOut ? 'Freelance client consultant shipping 5 apps/year' : 'Solo iOS contractor working with startup founders',
-        budgetCeiling: Math.round(input.proposedPrice * 1.2),
-        budgetPeriod: input.billingPeriod,
-        riskTolerance: 'medium',
-        primaryConstraint: 'Wants preflight checks to run 100% locally with zero client code uploads to third-party servers.',
-        existingStack: ['Xcode', 'SPM', 'CocoaPods', 'Firebase'],
-        evaluationCriteria: ['Local execution', 'Zero code leak risk', 'Speed of niche keyword scan'],
-        isHoldOut,
-        isOutOfMarket: false,
-        audienceMatch: 'in_market',
-      },
-      {
-        id: `p_ios4_${Date.now()}`,
-        name: isHoldOut ? 'Evelyn Wood' : 'Sarah Lindqvist',
-        role: 'app_publisher',
-        title: isHoldOut ? 'Indie App Portfolio Publisher' : 'Growth & App Store Optimization Lead',
-        companyProfile: isHoldOut ? 'Bootstrapped portfolio of 6 niche productivity apps' : 'Solo mobile publisher with 4 monetized iOS titles',
-        budgetCeiling: Math.round(input.proposedPrice * 1.3),
-        budgetPeriod: input.billingPeriod,
-        riskTolerance: 'low',
-        primaryConstraint: 'Needs actionable keyword intelligence and competitor niche data to justify new app concepts.',
-        existingStack: ['App Store Connect', 'Sensor Tower Lite', 'Stripe'],
-        evaluationCriteria: ['App Store keyword accuracy', 'Actionable niche gap scores', 'Simple monthly billing'],
-        isHoldOut,
-        isOutOfMarket: false,
-        audienceMatch: 'in_market',
-      },
-      {
-        id: `p_ios5_${Date.now()}`,
-        name: isHoldOut ? 'Tomasz Kowalski' : 'Alex Rivera',
-        role: 'indie_developer',
-        title: isHoldOut ? 'Part-time Indie Hacker' : 'Side-Project iOS Engineer',
-        companyProfile: isHoldOut ? 'Building weekend apps alongside day job ($2k MRR)' : 'Solo developer launching first commercial iOS app',
-        budgetCeiling: Math.round(input.proposedPrice * 0.7),
-        budgetPeriod: input.billingPeriod,
-        riskTolerance: 'high',
-        primaryConstraint: 'High price sensitivity; needs a low-cost trial or monthly option rather than lump-sum commitments.',
-        existingStack: ['SwiftUI', 'App Store Connect', 'Supabase'],
-        evaluationCriteria: ['Low barrier to entry', 'Clear monthly pricing equivalent', 'Immediate audit report'],
-        isHoldOut,
-        isOutOfMarket: false,
-        audienceMatch: 'in_market',
-      },
-      {
-        id: `p_ios6_${Date.now()}`,
-        name: isHoldOut ? 'Amara Okafor' : 'Priya Sharma',
-        role: 'mobile_tech_lead',
-        title: isHoldOut ? 'Head of Mobile' : 'Lead Mobile Architect',
-        companyProfile: isHoldOut ? 'FinTech mobile micro-team (4 mobile engineers)' : 'Mobile-first startup team (5 engineers)',
-        budgetCeiling: Math.round(input.proposedPrice * 2.0),
-        budgetPeriod: input.billingPeriod,
-        riskTolerance: 'low',
-        primaryConstraint: 'Requires privacy compliance: zero source code uploads and explicit guarantee of local analysis.',
-        existingStack: ['Swift', 'Kotlin Multiplatform', 'Bitrise', 'Sentry'],
-        evaluationCriteria: ['Zero cloud code ingestion', 'App Store guideline compliance', 'Team seat sharing'],
-        isHoldOut,
-        isOutOfMarket: false,
-        audienceMatch: 'in_market',
-      },
-      {
-        id: `p_ios7_${Date.now()}`,
-        name: isHoldOut ? 'Lucas Moreau' : 'Kenji Sato',
-        role: 'indie_developer',
-        title: isHoldOut ? 'Swift Open-Source Maintainer' : 'Independent Mac & iOS Developer',
-        companyProfile: isHoldOut ? 'Independent macOS & iOS utility developer' : 'Solo creator of 3 developer utility apps',
-        budgetCeiling: Math.round(input.proposedPrice * 1.0),
-        budgetPeriod: input.billingPeriod,
-        riskTolerance: 'medium',
-        primaryConstraint: 'Prefers command-line preflight tools that can integrate into local pre-commit hooks.',
-        existingStack: ['Swift CLI', 'Git', 'Xcodebuild', 'Homebrew'],
-        evaluationCriteria: ['CLI support', 'Fast execution (<30s)', 'Clear pricing without hidden tiers'],
-        isHoldOut,
-        isOutOfMarket: false,
-        audienceMatch: 'in_market',
-      },
-      {
-        id: `p_ios8_${Date.now()}`,
-        name: isHoldOut ? 'Zoe Henderson' : 'Elena Rostova',
-        role: 'aso_specialist',
-        title: isHoldOut ? 'App Store Marketing Specialist' : 'Mobile ASO & Discovery Consultant',
-        companyProfile: isHoldOut ? 'App Store discovery boutique agency' : 'Independent mobile marketing consultant',
-        budgetCeiling: Math.round(input.proposedPrice * 1.8),
-        budgetPeriod: input.billingPeriod,
-        riskTolerance: 'medium',
-        primaryConstraint: 'Needs niche scans with high data freshness and competitor saturation analysis.',
-        existingStack: ['AppTweak', 'Apple Search Ads', 'Notion'],
-        evaluationCriteria: ['Data freshness', 'Exportable scan reports', 'Fair scan pack pricing'],
-        isHoldOut,
-        isOutOfMarket: false,
-        audienceMatch: 'in_market',
-      },
-      // 2 Out-of-Market Stress-Test Personas (Clearly Labeled)
-      {
-        id: `p_ios9_out_${Date.now()}`,
-        name: isHoldOut ? 'Victoria Liu' : 'Marcus Vance',
-        role: 'enterprise_procurement',
-        title: isHoldOut ? 'Global Procurement Director' : 'VP of Enterprise Vendor Procurement',
-        companyProfile: isHoldOut ? 'Fortune 500 Enterprise IT Division' : 'Global Financial Corporation',
-        budgetCeiling: Math.round(input.proposedPrice * 4.0),
-        budgetPeriod: input.billingPeriod,
-        riskTolerance: 'low',
-        primaryConstraint: 'Outside our domain: We run enterprise backend services and require Coupa/ServiceNow, net-60 terms, and master SLAs.',
-        existingStack: ['Coupa', 'ServiceNow', 'Oracle ERP', 'AWS Marketplace'],
-        evaluationCriteria: ['Enterprise MSA', 'Centralized billing', 'Volume tiering'],
-        isHoldOut,
-        isOutOfMarket: true,
-        audienceMatch: 'out_of_market',
-      },
-      {
-        id: `p_ios10_out_${Date.now()}`,
-        name: isHoldOut ? 'Arthur Dent' : 'Rachel O\'Connor',
-        role: 'security_lead',
-        title: isHoldOut ? 'Enterprise HIPAA Security Officer' : 'Head of SecOps & Cloud Compliance',
-        companyProfile: isHoldOut ? 'HealthTech Hospital Systems' : 'Regulated Healthcare SaaS',
-        budgetCeiling: Math.round(input.proposedPrice * 3.0),
-        budgetPeriod: input.billingPeriod,
-        riskTolerance: 'low',
-        primaryConstraint: 'Out of domain: Requires SOC-2 Type II audit report, CMEK encryption, and BAA agreements before any tool evaluation.',
-        existingStack: ['HashiCorp Vault', 'Wiz', 'Datadog', 'GCP'],
-        evaluationCriteria: ['SOC-2 Type II', 'BAA signed', 'Dedicated VPC isolation'],
-        isHoldOut,
-        isOutOfMarket: true,
-        audienceMatch: 'out_of_market',
-      },
-    ];
-  }
-  // B. E-Commerce / Merchant / Payments / Fraud & Disputes (DisputeVantage, etc.)
-  else if (
     combinedText.includes('dispute') ||
     combinedText.includes('chargeback') ||
     combinedText.includes('ecommerce') ||
@@ -594,6 +461,180 @@ function getCalibratedFallbackPersonas(
         primaryConstraint: 'Out of domain: We do not process high-volume B2C consumer chargebacks; we require NetSuite ERP automated invoice reconciliation.',
         existingStack: ['NetSuite', 'Stripe B2B', 'Expensify', 'Avalara'],
         evaluationCriteria: ['NetSuite ERP integration', 'Corporate card dispute workflows', 'Predictable flat monthly subscription', 'Audit trail'],
+        isHoldOut,
+        isOutOfMarket: true,
+        audienceMatch: 'out_of_market',
+      },
+    ];
+  }
+  // B. Mobile / iOS Indie Developer Archetypes
+  else if (
+    combinedText.includes('ios app') ||
+    combinedText.includes('app store') ||
+    combinedText.includes('swiftui') ||
+    combinedText.includes('swift') ||
+    combinedText.includes('testflight') ||
+    combinedText.includes('mobile app developer')
+  ) {
+    archetypes = [
+      // 8 In-Market Indie iOS Personas
+      {
+        id: `p_ios1_${Date.now()}`,
+        name: isHoldOut ? 'Liam Murphy' : 'Chloe Bennet',
+        role: 'solo_founder',
+        title: isHoldOut ? 'Solo Indie iOS Creator' : 'Solo Founder & iOS Developer',
+        companyProfile: isHoldOut ? 'Self-funded App Studio ($12k MRR, 2 utility apps)' : 'Early-stage Micro-SaaS ($15k MRR, 2 utility iOS apps)',
+        budgetCeiling: Math.round(input.proposedPrice * 0.9),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'medium',
+        primaryConstraint: 'Extremely cash-sensitive; wants instant self-serve without multi-month lock-in or sales demos.',
+        existingStack: ['SwiftUI', 'Xcode', 'RevenueCat', 'TestFlight'],
+        evaluationCriteria: ['Transparent pricing', 'Low upfront cost', 'Catches App Store review rejections locally'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_ios2_${Date.now()}`,
+        name: isHoldOut ? 'Devon Chen' : 'Julian Vance',
+        role: 'app_studio_founder',
+        title: isHoldOut ? 'Boutique iOS Studio Co-Founder' : 'Co-founder, Indie App Studio',
+        companyProfile: isHoldOut ? 'App Studio with 4 utility apps (3 people, $35k MRR)' : 'Seed-Stage Mobile Studio ($500k raised, 3 apps)',
+        budgetCeiling: Math.round(input.proposedPrice * 1.5),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'medium',
+        primaryConstraint: 'Needs hard monthly caps on add-on scans; hates unexpected variable overages.',
+        existingStack: ['Swift', 'Fastlane', 'GitHub Actions', 'PostHog'],
+        evaluationCriteria: ['Predictable cost', 'Fast App Store preflight audit', 'CLI integration'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_ios3_${Date.now()}`,
+        name: isHoldOut ? 'Siddharth Rao' : 'Marco Rossi',
+        role: 'freelance_ios_engineer',
+        title: isHoldOut ? 'Contract iOS Developer' : 'Senior iOS Freelancer',
+        companyProfile: isHoldOut ? 'Freelance client consultant shipping 5 apps/year' : 'Solo iOS contractor working with startup founders',
+        budgetCeiling: Math.round(input.proposedPrice * 1.2),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'medium',
+        primaryConstraint: 'Wants preflight checks to run 100% locally with zero client code uploads to third-party servers.',
+        existingStack: ['Xcode', 'SPM', 'CocoaPods', 'Firebase'],
+        evaluationCriteria: ['Local execution', 'Zero code leak risk', 'Speed of niche keyword scan'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_ios4_${Date.now()}`,
+        name: isHoldOut ? 'Evelyn Wood' : 'Sarah Lindqvist',
+        role: 'app_publisher',
+        title: isHoldOut ? 'Indie App Portfolio Publisher' : 'Growth & App Store Optimization Lead',
+        companyProfile: isHoldOut ? 'Bootstrapped portfolio of 6 niche productivity apps' : 'Solo mobile publisher with 4 monetized iOS titles',
+        budgetCeiling: Math.round(input.proposedPrice * 1.3),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'low',
+        primaryConstraint: 'Needs actionable keyword intelligence and competitor niche data to justify new app concepts.',
+        existingStack: ['App Store Connect', 'Sensor Tower Lite', 'Stripe'],
+        evaluationCriteria: ['App Store keyword accuracy', 'Actionable niche gap scores', 'Simple monthly billing'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_ios5_${Date.now()}`,
+        name: isHoldOut ? 'Tomasz Kowalski' : 'Alex Rivera',
+        role: 'indie_developer',
+        title: isHoldOut ? 'Part-time Indie Hacker' : 'Side-Project iOS Engineer',
+        companyProfile: isHoldOut ? 'Building weekend apps alongside day job ($2k MRR)' : 'Solo developer launching first commercial iOS app',
+        budgetCeiling: Math.round(input.proposedPrice * 0.7),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'high',
+        primaryConstraint: 'High price sensitivity; needs a low-cost trial or monthly option rather than lump-sum commitments.',
+        existingStack: ['SwiftUI', 'App Store Connect', 'Supabase'],
+        evaluationCriteria: ['Low barrier to entry', 'Clear monthly pricing equivalent', 'Immediate audit report'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_ios6_${Date.now()}`,
+        name: isHoldOut ? 'Amara Okafor' : 'Priya Sharma',
+        role: 'mobile_tech_lead',
+        title: isHoldOut ? 'Head of Mobile' : 'Lead Mobile Architect',
+        companyProfile: isHoldOut ? 'FinTech mobile micro-team (4 mobile engineers)' : 'Mobile-first startup team (5 engineers)',
+        budgetCeiling: Math.round(input.proposedPrice * 2.0),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'low',
+        primaryConstraint: 'Requires privacy compliance: zero source code uploads and explicit guarantee of local analysis.',
+        existingStack: ['Swift', 'Kotlin Multiplatform', 'Bitrise', 'Sentry'],
+        evaluationCriteria: ['Zero cloud code ingestion', 'App Store guideline compliance', 'Team seat sharing'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_ios7_${Date.now()}`,
+        name: isHoldOut ? 'Lucas Moreau' : 'Kenji Sato',
+        role: 'indie_developer',
+        title: isHoldOut ? 'Swift Open-Source Maintainer' : 'Independent Mac & iOS Developer',
+        companyProfile: isHoldOut ? 'Independent macOS & iOS utility developer' : 'Solo creator of 3 developer utility apps',
+        budgetCeiling: Math.round(input.proposedPrice * 1.0),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'medium',
+        primaryConstraint: 'Prefers command-line preflight tools that can integrate into local pre-commit hooks.',
+        existingStack: ['Swift CLI', 'Git', 'Xcodebuild', 'Homebrew'],
+        evaluationCriteria: ['CLI support', 'Fast execution (<30s)', 'Clear pricing without hidden tiers'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      {
+        id: `p_ios8_${Date.now()}`,
+        name: isHoldOut ? 'Zoe Henderson' : 'Elena Rostova',
+        role: 'aso_specialist',
+        title: isHoldOut ? 'App Store Marketing Specialist' : 'Mobile ASO & Discovery Consultant',
+        companyProfile: isHoldOut ? 'App Store discovery boutique agency' : 'Independent mobile marketing consultant',
+        budgetCeiling: Math.round(input.proposedPrice * 1.8),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'medium',
+        primaryConstraint: 'Needs niche scans with high data freshness and competitor saturation analysis.',
+        existingStack: ['AppTweak', 'Apple Search Ads', 'Notion'],
+        evaluationCriteria: ['Data freshness', 'Exportable scan reports', 'Fair scan pack pricing'],
+        isHoldOut,
+        isOutOfMarket: false,
+        audienceMatch: 'in_market',
+      },
+      // 2 Out-of-Market Stress-Test Personas (Clearly Labeled)
+      {
+        id: `p_ios9_out_${Date.now()}`,
+        name: isHoldOut ? 'Victoria Liu' : 'Marcus Vance',
+        role: 'enterprise_procurement',
+        title: isHoldOut ? 'Global Procurement Director' : 'VP of Enterprise Vendor Procurement',
+        companyProfile: isHoldOut ? 'Fortune 500 Enterprise IT Division' : 'Global Financial Corporation',
+        budgetCeiling: Math.round(input.proposedPrice * 4.0),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'low',
+        primaryConstraint: 'Outside our domain: We run enterprise backend services and require Coupa/ServiceNow, net-60 terms, and master SLAs.',
+        existingStack: ['Coupa', 'ServiceNow', 'Oracle ERP', 'AWS Marketplace'],
+        evaluationCriteria: ['Enterprise MSA', 'Centralized billing', 'Volume tiering'],
+        isHoldOut,
+        isOutOfMarket: true,
+        audienceMatch: 'out_of_market',
+      },
+      {
+        id: `p_ios10_out_${Date.now()}`,
+        name: isHoldOut ? 'Arthur Dent' : 'Rachel O\'Connor',
+        role: 'security_lead',
+        title: isHoldOut ? 'Enterprise HIPAA Security Officer' : 'Head of SecOps & Cloud Compliance',
+        companyProfile: isHoldOut ? 'HealthTech Hospital Systems' : 'Regulated Healthcare SaaS',
+        budgetCeiling: Math.round(input.proposedPrice * 3.0),
+        budgetPeriod: input.billingPeriod,
+        riskTolerance: 'low',
+        primaryConstraint: 'Out of domain: Requires SOC-2 Type II audit report, CMEK encryption, and BAA agreements before any tool evaluation.',
+        existingStack: ['HashiCorp Vault', 'Wiz', 'Datadog', 'GCP'],
+        evaluationCriteria: ['SOC-2 Type II', 'BAA signed', 'Dedicated VPC isolation'],
         isHoldOut,
         isOutOfMarket: true,
         audienceMatch: 'out_of_market',

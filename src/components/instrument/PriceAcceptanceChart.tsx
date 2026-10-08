@@ -62,22 +62,27 @@ export const PriceAcceptanceChart: React.FC<PriceAcceptanceChartProps> = ({
   const medianX = getX(medianWtp);
 
   return (
-    <div className={`p-4 rounded-[var(--radius-lg)] bg-[var(--surface-1)] border border-[var(--border-subtle)] space-y-2 ${className}`}>
-      <div className="flex items-center justify-between text-xs">
-        <span className="font-mono uppercase tracking-wider text-[var(--text-muted)] text-[10px] font-medium">
-          Price vs. Commercial Demand Curve (n = {evaluations.length})
-        </span>
-        <div className="flex items-center gap-3 text-[10px] font-mono text-[var(--text-muted)]">
-          <span className="flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" /> Median WTP (${medianWtp})
+    <div className={`p-6 sm:p-8 rounded-2xl bg-[var(--surface-1)]/80 backdrop-blur-2xl border border-[var(--border-subtle)] space-y-4 shadow-xl ${className}`}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div>
+          <h3 className="text-base font-semibold text-[var(--text-primary)] tracking-tight">
+            Pricing Sweet Spot & Demand Curve ({evaluations.length} Buyers)
+          </h3>
+          <p className="text-xs text-[var(--text-secondary)] mt-1">
+            Acceptance retention across price elasticity. Blue marker = buyer consensus sweet spot (${medianWtp}). Amber = your proposed ask (${proposedPrice}).
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs shrink-0 self-start sm:self-auto">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium">
+            <span className="h-2 w-2 rounded-full bg-blue-400" /> Median Sweet Spot: ${medianWtp}
           </span>
-          <span className="flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--amber)]" /> Proposed (${proposedPrice})
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
+            <span className="h-2 w-2 rounded-full bg-amber-400" /> Proposed Pitch: ${proposedPrice}
           </span>
         </div>
       </div>
 
-      <div className="w-full overflow-hidden">
+      <div className="w-full overflow-hidden pt-2">
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="w-full h-auto text-[var(--text-muted)] font-mono text-[9px] select-none"

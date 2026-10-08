@@ -80,3 +80,41 @@ export function checkSimulationRateLimit(clientIp: string): RateLimitResult {
     resetMinutes: Math.ceil((entry.resetAt - now) / 60000),
   };
 }
+
+const negotiationIpMap = new Map<string, RateLimitEntry>();
+const MAX_NEGOTIATION_PER_IP_PER_HOUR = 150; // Allow 150 chat messages per IP/hour
+
+export function checkNegotiationRateLimit(clientIp: string): RateLimitResult {
+  const now = Date.now();
+  const entry = negotiationIpMap.get(clientIp);
+
+  if (!entry || now > entry.resetAt) {
+    negotiationIpMap.set(clientIp, {
+      count: 1,
+      resetAt: now + 60 * 60 * 1000,
+    });
+    return {
+      allowed: true,
+      remaining: MAX_NEGOTIATION_PER_IP_PER_HOUR - 1,
+      resetMinutes: 60,
+    };
+  }
+
+  if (entry.count >= MAX_NEGOTIATION_PER_IP_PER_HOUR) {
+    const minutesLeft = Math.ceil((entry.resetAt - now) / 60000);
+    return {
+      allowed: false,
+      remaining: 0,
+      resetMinutes: minutesLeft,
+      reason: `Negotiation chat message limit reached (${MAX_NEGOTIATION_PER_IP_PER_HOUR}/hour). Please wait ${minutesLeft} minutes.`,
+    };
+  }
+
+  entry.count += 1;
+  return {
+    allowed: true,
+    remaining: MAX_NEGOTIATION_PER_IP_PER_HOUR - entry.count,
+    resetMinutes: Math.ceil((entry.resetAt - now) / 60000),
+  };
+}
+

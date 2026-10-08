@@ -2,9 +2,13 @@ import { z } from 'zod';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Automatically load .env.local and .env
-dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+// Automatically load .env.local and .env when running in Node/scripts
+if (typeof window === 'undefined') {
+  try {
+    dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+    dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+  } catch {}
+}
 
 const envSchema = z.object({
   // Nebius Token Factory & NVIDIA Nemotron Models

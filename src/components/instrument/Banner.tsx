@@ -46,12 +46,12 @@ export const Banner: React.FC<BannerProps> = ({
   return (
     <div
       role="alert"
-      className={`p-3.5 sm:p-4 rounded-[var(--radius-md)] border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs ${current.container} ${className}`}
+      className={`p-4 sm:p-5 rounded-xl border backdrop-blur-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs sm:text-sm ${current.container} ${className}`}
     >
-      <div className="flex items-start gap-2.5">
+      <div className="flex items-start gap-3">
         {current.icon}
         <div className="space-y-0.5">
-          {title && <div className="font-semibold">{title}</div>}
+          {title && <div className="font-semibold text-sm">{title}</div>}
           <div className={`${current.text} leading-relaxed`}>{children}</div>
         </div>
       </div>

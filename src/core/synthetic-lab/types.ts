@@ -112,7 +112,7 @@ export interface SimulationInput {
   billingPeriod: 'month' | 'year' | 'quarter' | 'one_time' | string;
   pricingTiers?: string; // Optional multi-tier packaging breakdown (e.g. Preflight $19.99/3mo, Agency $45/mo, Niche Scans $15-$25)
   targetAudience: string;
-  category: 'devtools_api' | 'b2b_saas' | 'security_cloud' | 'anonymized_benchmark' | 'custom';
+  category: 'devtools_api' | 'b2b_saas' | 'security_cloud' | 'anonymized_benchmark' | 'consumer_app' | 'custom' | string;
 }
 
 export interface OptimizedPitch {
@@ -188,6 +188,7 @@ export interface SimulationRunEvent {
     verdict?: SimulationVerdict;
     optimizedPitch?: OptimizedPitch;
     holdOutResult?: HoldOutRetestResult;
+    battlecard?: CompetitiveBattlecard;
     telemetry?: {
       modelFast: string;
       modelReasoning: string;
@@ -197,3 +198,84 @@ export interface SimulationRunEvent {
     };
   };
 }
+
+export interface CompetitorProfile {
+  id: string;
+  name: string;
+  domain: string;
+  pricingModel: string;
+  hiddenTrapOrFriction: string;
+  developerGrievance: string;
+  sourceUrl?: string;
+  switchingCost: 'low' | 'medium' | 'high';
+  advantageOverCompetitor: string;
+  marketShareInSwarm?: number;
+}
+
+export interface CompetitiveBattlecard {
+  targetProduct: string;
+  marketCategory: string;
+  competitors: CompetitorProfile[];
+  positioningAdvantage: string;
+  opportunitySummary: string;
+  generatedAt?: number;
+}
+
+export interface BlockerChecklistItem {
+  index: number;
+  text: string;
+  resolved: boolean;
+  resolvedVia?: string;
+}
+
+export type ValueBenefitType =
+  | 'cost_saved'
+  | 'revenue_gained'
+  | 'time_saved'
+  | 'utility_or_delight';
+
+export interface NetValueFormula {
+  valueType?: ValueBenefitType;
+  valueTypeLabel?: string;
+  problemCost: number;             // Baseline gross loss or benchmark value
+  estimatedGrossBenefit?: number; // Gross monthly benefit if tool performs
+  efficacyRate?: number;          // Expected problem resolution rate (e.g. 0.50)
+  confidence?: number;            // Buyer confidence factor (e.g. 0.75)
+  realizedValue?: number;         // estimatedGrossBenefit * confidence
+  price: number;                  // Contract price
+  netGain: number;                // realizedValue - price
+  roiMultiple: number;            // realizedValue / price
+  derivation?: string;            // Human-readable derivation string
+}
+
+export interface NegotiationMessage {
+  id: string;
+  role: 'founder' | 'buyer';
+  content: string;
+  timestamp: number;
+  voteAfterMessage?: PersonaVote;
+  revisedPrice?: number;
+  rationale?: string;
+  concessionQuality?: 'fluff' | 'partial' | 'concrete_resolution';
+  netValueDelta?: number;
+  pushedBack?: boolean;
+  blockerChecklist?: BlockerChecklistItem[];
+  netValueFormula?: NetValueFormula;
+}
+
+export interface NegotiationSession {
+  personaId: string;
+  personaName: string;
+  role: PersonaRole;
+  initialVote: PersonaVote;
+  currentVote: PersonaVote;
+  initialPrice: number;
+  currentPrice: number;
+  voteFlipped: boolean;
+  concessionAudit?: 'fluff' | 'partial' | 'concrete_resolution';
+  netValueDelta?: number;
+  blockerChecklist: BlockerChecklistItem[];
+  netValueFormula?: NetValueFormula;
+  messages: NegotiationMessage[];
+}
+

@@ -126,10 +126,32 @@ npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### 5. Replay of Saved Benchmark Run
-Click the **"Replay of Saved Run"** button in the header to instantaneously inspect a pre-recorded benchmark run with complete grounded evidence, adversarial objections, and hold-out delta. To run a fresh simulation live through Nebius and Tavily, click **"Run Adversarial Simulation"**.
+### 5. Instant Demo Replay (Zero API Keys Required)
+Click the **"Watch Demo Replay"** button in the top bar or inside the staging card to instantaneously inspect a pre-recorded benchmark run with complete Tavily grounded evidence, adversarial objections, and hold-out delta. To run a live simulation through Nebius and Tavily, choose any preset or enter custom pitch and click **"Run Simulation"**.
+
+### 6. Run Architectural Verification Suite
+```bash
+npm test
+```
+Executes all 33 architectural, anti-circular, and adversarial verification tests — verifying sycophancy rejection, buzzword fluff detection, off-target pushback, multi-turn checklist resolution, competitor battlecard grounding, and deterministic Net ROI formula enforcement.
+
+### 7. Run Live 15-Case Adversarial Procurement Benchmark
+```bash
+npm run benchmark:adversarial
+```
+Runs the comprehensive 15-case adversarial procurement test across 5 diverse products (Fintech B2B, Developer Infrastructure, HealthTech Compliance, Consumer Subscription App, and Indie Dev MicroSaaS), testing prompt injection, authority bluffs, poison pills, vague seriousness, and multi-turn state preservation. Output: **100% Pass Rate across all 75 live trials**.
 
 ---
+
+## 🏛️ Advanced Architecture: Anti-Sycophancy & Economic ROI Formula
+
+1. **Procurement Blocker Checklist**: Every persona's fatal objections are converted into numbered blockers (`[Blocker 0, Blocker 1, ...]`). A buyer cannot flip to `ADOPT` until *every single blocker* is credibly resolved with binding terms.
+2. **Deterministic Universal Economic Formula**:
+   $$\text{Realized Value} = \text{Gross Benefit} \times \text{Confidence}$$
+   $$\text{Net Gain} = \text{Realized Value} - \text{Contract Price} > 0$$
+   Code, not LLM pleasantries, decides the vote. If a vendor offers spend caps but hikes the price past the buyer's quantifiable benefit ($\text{Net Gain} \le 0$), the buyer immediately rejects the offer.
+3. **Competitive Battlecard Persona Loop**: Injects real competitor friction and traps gathered by Tavily into buyer reasoning so synthetic buyers actively benchmark your solution against market incumbents (e.g. Pinecone, Chargeflow, Vanta).
+4. **Interactive Sparring UI**: Founders can negotiate live with buyers via NVIDIA Nemotron, track cleared blockers in real time with animated progress indicators, and audit commercial math directly on screen.
 
 ## 📜 License
 MIT License. Open-sourced for the Nebius x NVIDIA Global AI Hackathon 2026.

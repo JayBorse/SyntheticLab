@@ -223,22 +223,22 @@ export const ExportCard: React.FC<{ data: SimulationExportData; className?: stri
 
   return (
     <div
-      className={`p-4 sm:p-5 rounded-[var(--radius-lg)] bg-[var(--surface-2)] border border-[var(--border-subtle)] space-y-3 ${className}`}
+      className={`p-6 sm:p-8 rounded-2xl bg-[var(--surface-1)]/80 backdrop-blur-2xl border border-[var(--border-subtle)] space-y-6 shadow-xl ${className}`}
     >
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-5">
         <div>
-          <h3 className="font-semibold text-sm text-[var(--text-primary)] flex items-center gap-2">
-            <Download className="h-4 w-4 text-[var(--accent)]" />
-            Export Procurement Teardown & Findings
+          <h3 className="font-semibold text-lg text-[var(--text-primary)] flex items-center gap-2.5 tracking-tight">
+            <Download className="h-5 w-5 text-blue-400" />
+            Export Teardown & Findings
           </h3>
-          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-            Download simulation artifacts for internal product reviews, investor memos, or pricing strategy alignment.
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
+            Download comprehensive simulation reports for product roadmap planning, pitch deck calibration, or pricing reviews.
           </p>
         </div>
         <button
           type="button"
           onClick={handleCopyClipboard}
-          className="text-xs font-mono text-[var(--accent)] hover:underline flex items-center gap-1 cursor-pointer shrink-0"
+          className="text-xs font-medium text-blue-400 hover:text-blue-300 flex items-center gap-1.5 cursor-pointer shrink-0 py-2 px-4 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] transition-all active:scale-95"
         >
           {copied ? (
             <>
@@ -248,32 +248,32 @@ export const ExportCard: React.FC<{ data: SimulationExportData; className?: stri
           ) : (
             <>
               <Copy className="h-3.5 w-3.5" />
-              <span>Copy Teardown</span>
+              <span>Copy Teardown Brief</span>
             </>
           )}
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
         {/* Button 1: Markdown Report */}
         <button
           type="button"
           onClick={() => handleDownload('markdown')}
-          className="flex flex-col items-start p-3 rounded-[var(--radius-md)] bg-[var(--surface-1)] border border-[var(--border-subtle)] hover:border-[var(--accent-border)] hover:bg-[var(--surface-hover)] transition-all text-left cursor-pointer group"
+          className="flex flex-col items-start p-5 rounded-xl bg-[var(--surface-2)]/60 border border-[var(--border-subtle)] hover:border-white/20 hover:bg-[var(--surface-hover)] transition-all text-left cursor-pointer group hover:-translate-y-0.5 shadow-sm hover:shadow-md"
         >
-          <div className="flex items-center justify-between w-full mb-1">
-            <span className="font-semibold text-xs text-[var(--text-primary)] flex items-center gap-1.5">
-              <FileText className="h-3.5 w-3.5 text-[var(--accent)]" />
+          <div className="flex items-center justify-between w-full mb-2">
+            <span className="font-semibold text-sm text-[var(--text-primary)] flex items-center gap-2">
+              <FileText className="h-4 w-4 text-blue-400" />
               Executive Report
             </span>
-            <span className="text-[10px] font-mono uppercase text-[var(--text-muted)] bg-[var(--surface-2)] px-1.5 py-0.5 rounded">
+            <span className="text-[10px] font-mono uppercase text-[var(--text-muted)] bg-[var(--surface-3)] px-2 py-0.5 rounded-full">
               .MD
             </span>
           </div>
-          <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-            Full teardown with tables, quotes, objection frequencies, and optimization roadmap.
+          <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+            Full teardown with tables, quotes, objection frequencies, and strategic optimization roadmap.
           </p>
-          <span className="mt-2 text-[10px] font-mono text-[var(--accent)] group-hover:underline flex items-center gap-1">
+          <span className="mt-3 text-xs font-medium text-blue-400 group-hover:underline flex items-center gap-1">
             {downloadedFormat === 'markdown' ? '✓ Downloaded' : 'Download Brief →'}
           </span>
         </button>
@@ -282,21 +282,21 @@ export const ExportCard: React.FC<{ data: SimulationExportData; className?: stri
         <button
           type="button"
           onClick={() => handleDownload('csv')}
-          className="flex flex-col items-start p-3 rounded-[var(--radius-md)] bg-[var(--surface-1)] border border-[var(--border-subtle)] hover:border-[var(--accent-border)] hover:bg-[var(--surface-hover)] transition-all text-left cursor-pointer group"
+          className="flex flex-col items-start p-5 rounded-xl bg-[var(--surface-2)]/60 border border-[var(--border-subtle)] hover:border-white/20 hover:bg-[var(--surface-hover)] transition-all text-left cursor-pointer group hover:-translate-y-0.5 shadow-sm hover:shadow-md"
         >
-          <div className="flex items-center justify-between w-full mb-1">
-            <span className="font-semibold text-xs text-[var(--text-primary)] flex items-center gap-1.5">
-              <Table className="h-3.5 w-3.5 text-[var(--accent)]" />
+          <div className="flex items-center justify-between w-full mb-2">
+            <span className="font-semibold text-sm text-[var(--text-primary)] flex items-center gap-2">
+              <Table className="h-4 w-4 text-emerald-400" />
               Persona Matrix
             </span>
-            <span className="text-[10px] font-mono uppercase text-[var(--text-muted)] bg-[var(--surface-2)] px-1.5 py-0.5 rounded">
+            <span className="text-[10px] font-mono uppercase text-[var(--text-muted)] bg-[var(--surface-3)] px-2 py-0.5 rounded-full">
               .CSV
             </span>
           </div>
-          <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+          <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
             Spreadsheet table of all 10 personas, roles, budgets, votes, and individual WTP values.
           </p>
-          <span className="mt-2 text-[10px] font-mono text-[var(--accent)] group-hover:underline flex items-center gap-1">
+          <span className="mt-3 text-xs font-medium text-emerald-400 group-hover:underline flex items-center gap-1">
             {downloadedFormat === 'csv' ? '✓ Downloaded' : 'Export Spreadsheet →'}
           </span>
         </button>
@@ -305,21 +305,21 @@ export const ExportCard: React.FC<{ data: SimulationExportData; className?: stri
         <button
           type="button"
           onClick={() => handleDownload('json')}
-          className="flex flex-col items-start p-3 rounded-[var(--radius-md)] bg-[var(--surface-1)] border border-[var(--border-subtle)] hover:border-[var(--accent-border)] hover:bg-[var(--surface-hover)] transition-all text-left cursor-pointer group"
+          className="flex flex-col items-start p-5 rounded-xl bg-[var(--surface-2)]/60 border border-[var(--border-subtle)] hover:border-white/20 hover:bg-[var(--surface-hover)] transition-all text-left cursor-pointer group hover:-translate-y-0.5 shadow-sm hover:shadow-md"
         >
-          <div className="flex items-center justify-between w-full mb-1">
-            <span className="font-semibold text-xs text-[var(--text-primary)] flex items-center gap-1.5">
-              <FileCode className="h-3.5 w-3.5 text-[var(--accent)]" />
+          <div className="flex items-center justify-between w-full mb-2">
+            <span className="font-semibold text-sm text-[var(--text-primary)] flex items-center gap-2">
+              <FileCode className="h-4 w-4 text-amber-400" />
               Full Raw Dataset
             </span>
-            <span className="text-[10px] font-mono uppercase text-[var(--text-muted)] bg-[var(--surface-2)] px-1.5 py-0.5 rounded">
+            <span className="text-[10px] font-mono uppercase text-[var(--text-muted)] bg-[var(--surface-3)] px-2 py-0.5 rounded-full">
               .JSON
             </span>
           </div>
-          <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-            Complete structured JSON dump of all 7 pipeline stages, evidence, and telemetry.
+          <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+            Complete structured JSON dump of all 7 pipeline stages, live web citations, and telemetry.
           </p>
-          <span className="mt-2 text-[10px] font-mono text-[var(--accent)] group-hover:underline flex items-center gap-1">
+          <span className="mt-3 text-xs font-medium text-amber-400 group-hover:underline flex items-center gap-1">
             {downloadedFormat === 'json' ? '✓ Downloaded' : 'Download JSON →'}
           </span>
         </button>

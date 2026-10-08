@@ -26,6 +26,20 @@ export const metadata: Metadata = {
     'SyntheticLab',
     'AI Hackathon 2026',
   ],
+  authors: [{ name: 'SyntheticLab Team' }],
+  openGraph: {
+    title: 'SyntheticLab — Autonomous Synthetic Buyer & Churn Simulation Arena',
+    description:
+      'Stress-test your startup pitch on 10 ruthless AI buyers before launch day. Powered by NVIDIA Nemotron on Nebius Token Factory and Tavily AI Search.',
+    type: 'website',
+    siteName: 'SyntheticLab',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'SyntheticLab — Autonomous Synthetic Buyer & Churn Simulation Arena',
+    description:
+      'Stress-test your startup pitch on 10 ruthless AI buyers before launch day. Powered by NVIDIA Nemotron on Nebius Token Factory and Tavily AI Search.',
+  },
 };
 
 export default function RootLayout({

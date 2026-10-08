@@ -1,0 +1,712 @@
+{
+  "metadata": {
+    "generator": "SyntheticLab — Autonomous Synthetic Buyer & Churn Simulation Arena",
+    "exportedAt": "2026-10-04T02:29:54.650Z",
+    "models": {
+      "reasoning": "nvidia/nemotron-3-super-120b-a12b",
+      "fast": "nvidia/nemotron-3-super-120b-a12b"
+    },
+    "telemetry": {
+      "modelFast": "nvidia/nemotron-3-super-120b-a12b",
+      "modelReasoning": "nvidia/nemotron-3-super-120b-a12b",
+      "parallelCalls": 10,
+      "latencyMs": 79886
+    }
+  },
+  "pitch": {
+    "productName": "ApexRelay",
+    "tagline": "High-Concurrency Outbound Webhook Delivery Engine with Guaranteed Zero-Loss Delivery",
+    "description": "Serverless outbound webhook dispatcher that delivers up to 100,000 webhooks/sec with automatic HMAC-SHA256 signing, exponential backoff retries, dead-letter storage, and self-hosted SOC-2 compliance for SaaS and Fintech platforms.",
+    "proposedPrice": 89,
+    "billingPeriod": "month",
+    "targetAudience": "Fintech and SaaS CTOs, Platform Architects, and Lead Backend Engineers",
+    "category": "devtools_api"
+  },
+  "verdict": {
+    "totalPersonas": 5,
+    "adoptCount": 3,
+    "rejectCount": 2,
+    "hesitantCount": 0,
+    "acceptanceRate": 0.6,
+    "paidAdoptCount": 3,
+    "freeAdoptCount": 0,
+    "paidAcceptanceRate": 0.6,
+    "inMarketTotal": 3,
+    "inMarketAdoptCount": 3,
+    "inMarketPaidAdoptCount": 3,
+    "inMarketHesitantCount": 0,
+    "inMarketRejectCount": 0,
+    "inMarketAcceptanceRate": 1,
+    "inMarketPaidAcceptanceRate": 1,
+    "outOfMarketTotal": 2,
+    "outOfMarketRejectCount": 2,
+    "monthlyEquivalentPrice": 89,
+    "normalizedPriceDisplay": "$89/month",
+    "audienceAlignmentWarning": "Audience Segmentation Notice: 2 out of 2 out-of-market stress-test personas rejected because this product is outside their domain. Target ICP adoption is reported separately (100% in-market commercial adoption across 3 target buyers).",
+    "priceRange": {
+      "min": 0,
+      "median": 150,
+      "max": 150,
+      "currency": "USD",
+      "period": "month",
+      "monthlyEquivalentMedian": 150
+    },
+    "topObjections": [
+      {
+        "objection": "Product is outside operational scope; procurement focuses on vendor management tools (SAP Ariba, Coupa, ServiceNow, IBM OpenPages) not low-level webhook delivery engines.",
+        "frequency": 2,
+        "severity": "blocker",
+        "citedSources": []
+      },
+      {
+        "objection": "Vendor financial stability and SOC-2 Type II audit evidence not demonstrated; fails compliance requirement.",
+        "frequency": 2,
+        "severity": "blocker",
+        "citedSources": []
+      }
+    ],
+    "suggestedActionItems": [
+      "Target empirical willingness-to-pay: $150/month.",
+      "Directly address top friction: \"Product is outside operational scope; procurement focuses on vendor management tools (SAP Ariba, Coupa, ServiceNow, IBM OpenPages) not low-level webhook delivery engines.\".",
+      "Scale distribution within primary ICP."
+    ]
+  },
+  "cohortA": {
+    "personas": [
+      {
+        "id": "persona_1791080931933_0",
+        "name": "Alexandra Nguyen",
+        "role": "fintech_cto",
+        "title": "CTO, PayFlow Payments",
+        "companyProfile": "Series A fintech processing $2M ARR (~$166k MRR), 30 engineers, 150k transactions/day",
+        "monthlyLossOrProblemCost": "$7,000/mo in engineering overtime for missed webhook retries + $2,000 potential SLA penalty fees",
+        "budgetCeiling": 1800,
+        "budgetPeriod": "month",
+        "riskTolerance": "medium",
+        "primaryConstraint": "No dedicated reliability team; CTO spends weekends debugging webhook failures",
+        "existingStack": [
+          "AWS Lambda",
+          "Stripe",
+          "Kafka",
+          "Datadog"
+        ],
+        "evaluationCriteria": [
+          "Guaranteed zero-loss delivery",
+          "Built-in HMAC signing",
+          "Self-hosted SOC-2 compliance",
+          "Price < $100/mo"
+        ],
+        "isHoldOut": false,
+        "isOutOfMarket": false,
+        "audienceMatch": "in_market"
+      },
+      {
+        "id": "persona_1791080931933_1",
+        "name": "Marcus Patel",
+        "role": "platform_architect",
+        "title": "Platform Architect, Nexus SaaS",
+        "companyProfile": "Series B B2B SaaS with $5M ARR (~$416k MRR), 50 engineers, serving 2k enterprise customers",
+        "monthlyLossOrProblemCost": "$5,000/mo in support tickets due to delayed webhook sync + $3,000 potential churn risk",
+        "budgetCeiling": 1600,
+        "budgetPeriod": "month",
+        "riskTolerance": "low",
+        "primaryConstraint": "Architecture team lacks budget for extra devops headcount; relies on manual monitoring",
+        "existingStack": [
+          "Google Cloud Run",
+          "Segment",
+          "PostgreSQL",
+          "PagerDuty"
+        ],
+        "evaluationCriteria": [
+          "Serverless scalability to 100k webhooks/sec",
+          "Automatic retries with dead-letter queue",
+          "Transparent pricing",
+          "Easy SDK integration"
+        ],
+        "isHoldOut": false,
+        "isOutOfMarket": false,
+        "audienceMatch": "in_market"
+      },
+      {
+        "id": "persona_1791080931933_2",
+        "name": "Sofia Ramirez",
+        "role": "lead_backend_engineer",
+        "title": "Lead Backend Engineer, CryptoTrade Exchange",
+        "companyProfile": "Growth-stage crypto exchange, $10M ARR (~$833k MRR), 80 engineers, processing 2M trades/day",
+        "monthlyLossOrProblemCost": "$10,000/mo in engineering hours spent on reconciliation + $2,000 potential regulatory fines for missed trade confirmations",
+        "budgetCeiling": 2400,
+        "budgetPeriod": "month",
+        "riskTolerance": "medium",
+        "primaryConstraint": "Engineers are pulled from feature work to manually re-send failed webhooks, slowing roadmap",
+        "existingStack": [
+          "Kubernetes",
+          "RabbitMQ",
+          "Redis",
+          "Grafana"
+        ],
+        "evaluationCriteria": [
+          "Zero-loss guarantee",
+          "Built-in exponential backoff",
+          "Self-hosted for data sovereignty",
+          "Cost under $150/mo"
+        ],
+        "isHoldOut": false,
+        "isOutOfMarket": false,
+        "audienceMatch": "in_market"
+      },
+      {
+        "id": "persona_1791080931933_3",
+        "name": "Daniel Choi",
+        "role": "procurement_director",
+        "title": "Director of Procurement, GlobalBank",
+        "companyProfile": "Large multinational bank with $50B assets, centralized tech procurement overseeing $200M annual software spend",
+        "monthlyLossOrProblemCost": "$15,000/mo in potential costs from failed vendor integrations (rework, compliance review, opportunity loss)",
+        "budgetCeiling": 3000,
+        "budgetPeriod": "month",
+        "riskTolerance": "low",
+        "primaryConstraint": "Procurement must justify any new tool against strict ROI and security reviews; long sales cycles",
+        "existingStack": [
+          "SAP Ariba",
+          "Coupa",
+          "ServiceNow",
+          "IBM OpenPages"
+        ],
+        "evaluationCriteria": [
+          "SOC-2 Type II compliance",
+          "Clear SLAs and penalties",
+          "Vendor financial stability",
+          "Total cost of ownership < 5% of integration budget"
+        ],
+        "isHoldOut": false,
+        "isOutOfMarket": true,
+        "audienceMatch": "out_of_market"
+      },
+      {
+        "id": "persona_1791080931933_4",
+        "name": "Emily Torres",
+        "role": "finance_controller",
+        "title": "Corporate Controller, MidMarket SaaS Inc.",
+        "companyProfile": "Series C SaaS company with $3M ARR (~$250k MRR), 40 employees, finance team of 5",
+        "monthlyLossOrProblemCost": "$5,000/mo in manual reconciliation labor due to webhook failures + $1,000 audit risk exposure",
+        "budgetCeiling": 1200,
+        "budgetPeriod": "month",
+        "riskTolerance": "medium",
+        "primaryConstraint": "Finance team lacks automation; errors lead to delayed month-end close and potential restatements",
+        "existingStack": [
+          "NetSuite",
+          "Stripe",
+          "HubSpot",
+          "Looker"
+        ],
+        "evaluationCriteria": [
+          "Automated error handling reduces manual work",
+          "Predictable monthly cost",
+          "Audit-ready logs",
+          "Easy ERP connector"
+        ],
+        "isHoldOut": false,
+        "isOutOfMarket": true,
+        "audienceMatch": "out_of_market"
+      }
+    ],
+    "evaluations": [
+      {
+        "personaId": "persona_1791080931933_0",
+        "personaName": "Alexandra Nguyen",
+        "role": "fintech_cto",
+        "vote": "adopt",
+        "acceptablePrice": 150,
+        "acceptablePeriod": "month",
+        "isOutOfMarket": false,
+        "fatalObjections": [],
+        "dealMakers": [
+          "Self-hosted SOC-2 compliant deployment",
+          "Exponential backoff with dead-letter storage ensures zero-loss even during traffic spikes"
+        ],
+        "rationale": "The product solves a $9k/mo problem (engineering overtime + SLA penalties) for under $100/mo, delivering >100x ROI. Compared to Svix and Hookdeck, its flat $89/mo eliminates usage‑based overage risk and operational overhead. It meets all key criteria: guaranteed zero‑loss, HMAC signing, self‑hosted SOC‑2, and price < $100/mo."
+      },
+      {
+        "personaId": "persona_1791080931933_1",
+        "personaName": "Marcus Patel",
+        "role": "platform_architect",
+        "vote": "adopt",
+        "acceptablePrice": 150,
+        "acceptablePeriod": "month",
+        "isOutOfMarket": false,
+        "fatalObjections": [],
+        "dealMakers": [
+          "SLA guaranteeing 99.9% uptime and sub‑100ms latency",
+          "Free 30‑day proof‑of‑concept with dedicated support",
+          "Clear SDK docs for Segment and Google Cloud Run integration"
+        ],
+        "rationale": "At $89/mo ApexRelay eliminates the $5k/mo support ticket cost and $3k churn risk from delayed webhooks, delivering >80x ROI. Its flat pricing avoids the usage‑based overage risk seen in Svix and Hookdeck, fitting our low‑risk, ops‑light architecture team."
+      },
+      {
+        "personaId": "persona_1791080931933_2",
+        "personaName": "Sofia Ramirez",
+        "role": "lead_backend_engineer",
+        "vote": "adopt",
+        "acceptablePrice": 150,
+        "acceptablePeriod": "month",
+        "isOutOfMarket": false,
+        "fatalObjections": [],
+        "dealMakers": [
+          "Contractual protection against Svix's reported friction",
+          "Transparent pricing cap"
+        ],
+        "rationale": "ApexRelay eliminates our $12k/mo engineering and compliance cost from missed webhooks at a flat $89/mo, well under our $150/mo budget. Its zero‑loss guarantee, built‑in exponential backoff, and self‑hosted SOC‑2 compliance meet our key criteria, while competitors Svix and Hookdeck would incur thousands in variable overage fees at our 2M trades/day volume. The solution delivers clear ROI with negligible implementation effort."
+      },
+      {
+        "personaId": "persona_1791080931933_3",
+        "personaName": "Daniel Choi",
+        "role": "procurement_director",
+        "vote": "reject",
+        "acceptablePrice": 0,
+        "acceptablePeriod": "month",
+        "isOutOfMarket": true,
+        "fatalObjections": [
+          {
+            "objection": "Product is outside operational scope; procurement focuses on vendor management tools (SAP Ariba, Coupa, ServiceNow, IBM OpenPages) not low-level webhook delivery engines.",
+            "severity": "blocker"
+          },
+          {
+            "objection": "No clear SLA or penalty terms provided; required for low-risk tolerance procurement.",
+            "severity": "blocker"
+          },
+          {
+            "objection": "Vendor financial stability and SOC-2 Type II audit evidence not demonstrated; fails compliance requirement.",
+            "severity": "blocker"
+          }
+        ],
+        "dealMakers": [
+          "Demonstrated integration with existing stack (ServiceNow, SAP Ariba) with pre-built connectors",
+          "Published SOC-2 Type II report and clear SLA with financial penalties",
+          "Audited financial statements showing vendor viability"
+        ],
+        "rationale": "As a procurement director at a global bank, my purchasing authority is limited to enterprise vendor management and GRC tools; ApexRelay is a developer‑focused webhook dispatcher that does not align with our current integration stack or procurement priorities. Without proven compliance, SLAs, and vendor viability, the purchase cannot be justified despite the low price. (Benchmarked vs incumbent Svix: $20/month base + $0.10 per 1k events over 100k)"
+      },
+      {
+        "personaId": "persona_1791080931933_4",
+        "personaName": "Emily Torres",
+        "role": "finance_controller",
+        "vote": "reject",
+        "acceptablePrice": 0,
+        "acceptablePeriod": "month",
+        "isOutOfMarket": true,
+        "fatalObjections": [
+          {
+            "objection": "ApexRelay solves outbound webhook delivery reliability, which is an engineering infrastructure problem unrelated to my finance team's manual reconciliation labor and audit risk.",
+            "severity": "blocker"
+          }
+        ],
+        "dealMakers": [
+          "Contractual protection against Svix's reported friction",
+          "Transparent pricing cap"
+        ],
+        "rationale": "As a Corporate Controller, I need tools that reduce manual reconciliation and provide audit-ready finance logs; ApexRelay does not address these needs. The product is outside my operational scope, so I would not adopt it regardless of price. (Benchmarked vs incumbent Svix: $20/month base + $0.10 per 1k events over 100k)"
+      }
+    ]
+  },
+  "marketEvidence": [
+    {
+      "id": "ev_live_0_0",
+      "sourceType": "competitor_pricing",
+      "title": "10 FinOps tools platform engineers should evaluate for 2026",
+      "snippet": "CloudHealth provides enterprise-grade, policy-driven cost governance. Broadcom's acquisition added enterprise features but introduced uncertainty around the roadmap and pricing.\n\nOffers solid multi-cloud visibility and customizable governan...",
+      "url": "https://platformengineering.org/blog/10-finops-tools-platform-engineers-should-evaluate-for-2026",
+      "domain": "platformengineering.org",
+      "relevanceToPitch": "Live web evidence discovered for Fintech and SaaS CTOs, Platform Architects, and Lead Backend Engineers"
+    },
+    {
+      "id": "ev_live_0_1",
+      "sourceType": "competitor_pricing",
+      "title": "12 Best Fintech Software Development Partners in 2026",
+      "snippet": "Differentiator\n\nAzumo is built for capacity in your working hours at a lower blended rate than onshore hiring.\n\nProof of execution\n\n Nearshore engineering model with published time-zone overlap benefit.\n SaaS, financial services, and media ...",
+      "url": "https://teamvoy.com/blog/fintech-software-development",
+      "domain": "teamvoy.com",
+      "relevanceToPitch": "Live web evidence discovered for Fintech and SaaS CTOs, Platform Architects, and Lead Backend Engineers"
+    },
+    {
+      "id": "ev_live_0_2",
+      "sourceType": "competitor_pricing",
+      "title": "Best Fintech Software Development Companies in 2026: A Buyer's Guide to Choosing the Right Partner",
+      "snippet": "Source: brightmarbles.io\n\n#### How Much Does BrightMarbles Fintech Development Cost?\n\nBrightMarbles lists $50-$99 per hour, a $50,000+ minimum project size, and the highest cost rating on this list at 4.9 out of 5. Specific figures are not ...",
+      "url": "https://www.monterail.com/blog/best-fintech-software-development-companies",
+      "domain": "monterail.com",
+      "relevanceToPitch": "Live web evidence discovered for Fintech and SaaS CTOs, Platform Architects, and Lead Backend Engineers"
+    },
+    {
+      "id": "ev_live_1_0",
+      "sourceType": "reddit_complaint",
+      "title": "A CTO/Senior Software Dev's take on Star Citizen",
+      "snippet": "My guess is the client engineers are blaming the backend programmers. The backend (server) engineers are throwing their hands up in the air and...",
+      "url": "https://www.reddit.com/r/starcitizen/comments/hvz26j/a_ctosenior_software_devs_take_on_star_citizen",
+      "domain": "reddit.com",
+      "relevanceToPitch": "Live web evidence discovered for Fintech and SaaS CTOs, Platform Architects, and Lead Backend Engineers"
+    },
+    {
+      "id": "ev_live_1_1",
+      "sourceType": "reddit_complaint",
+      "title": "Vibe coding is killing my company : r/vibecoding",
+      "snippet": "I've been building a company as the CTO with a non-tech CEO for the past two years. The revenue barely covers marketing expenses,...",
+      "url": "https://www.reddit.com/r/vibecoding/comments/1lwbgzl/vibe_coding_is_killing_my_company",
+      "domain": "reddit.com",
+      "relevanceToPitch": "Live web evidence discovered for Fintech and SaaS CTOs, Platform Architects, and Lead Backend Engineers"
+    },
+    {
+      "id": "ev_live_1_2",
+      "sourceType": "reddit_complaint",
+      "title": "I am Kailash Nadh, hobbyist developer, CTO at Zerodha. ...",
+      "snippet": "I'm a hobbyist software developer who has been writing software, releasing FOSS (Free and Open Source Software), and enjoying it all for ~22...",
+      "url": "https://www.reddit.com/r/developersIndia/comments/13acrzg/i_am_kailash_nadh_hobbyist_developer_cto_at",
+      "domain": "reddit.com",
+      "relevanceToPitch": "Live web evidence discovered for Fintech and SaaS CTOs, Platform Architects, and Lead Backend Engineers"
+    }
+  ],
+  "optimization": {
+    "originalInput": {
+      "productName": "ApexRelay",
+      "tagline": "High-Concurrency Outbound Webhook Delivery Engine with Guaranteed Zero-Loss Delivery",
+      "description": "Serverless outbound webhook dispatcher that delivers up to 100,000 webhooks/sec with automatic HMAC-SHA256 signing, exponential backoff retries, dead-letter storage, and self-hosted SOC-2 compliance for SaaS and Fintech platforms.",
+      "proposedPrice": 89,
+      "billingPeriod": "month",
+      "targetAudience": "Fintech and SaaS CTOs, Platform Architects, and Lead Backend Engineers",
+      "category": "devtools_api"
+    },
+    "revisedTagline": "Serverless Webhook Engine: 100K/sec Delivery, Zero-Loss Guarantee, SOC-2 Ready",
+    "revisedDescription": "ApexRelay is a serverless outbound webhook dispatcher built for Fintech and SaaS platforms requiring guaranteed delivery at scale. Delivers 100,000 webhooks/sec with automatic HMAC-SHA256 signing, exponential backoff retries, dead-letter queue persistence, and self-hosted deployment for data residency. Includes SOC-2 Type II control mapping documentation and penetration test summary for compliance teams. No vendor lock-in, no per-webhook overages, no shared tenancy.",
+    "calibratedPrice": 150,
+    "calibratedPeriod": "month",
+    "packagingFix": "Flat $150/month for up to 50M webhooks/month (burst to 100K/sec). Includes 14-day production trial with full throughput, SOC-2 control mapping PDF, and pen-test summary. Zero overage surcharges. Annual prepay at $1,500/year (17% discount) with same terms.",
+    "objectionCountermeasures": [
+      {
+        "targetObjection": "Vendor financial stability and SOC-2 Type II audit evidence not demonstrated; fails compliance requirement.",
+        "countermeasure": "Publish SOC-2 Type II control mapping document (CC6.1-CC6.8, CC7.1-CC7.5) and third-party penetration test summary (OWASP ASVS 4.0 Level 2) in public trust center. Add customer reference program: 3 design partners (2 Fintech, 1 SaaS) available for technical validation calls under NDA.",
+        "effort": "medium"
+      },
+      {
+        "targetObjection": "Product is outside operational scope; procurement focuses on vendor management tools (SAP Ariba, Coupa, ServiceNow, IBM OpenPages) not low-level webhook delivery engines.",
+        "countermeasure": "Explicitly disqualify non-engineering buyers in sales motion: 'ApexRelay is engineered for Platform Architects and Lead Backend Engineers, not procurement/vendor management workflows.' Add ICP-fit checklist to pricing page (e.g., 'You need this if: you own webhook reliability SLA, you run self-hosted infra, you sign payloads with HMAC').",
+        "effort": "low"
+      }
+    ],
+    "strategicRationale": "In-market ICP adoption is 100% at current $89 price, confirming product-market fit. The $150 calibrated price captures proven willingness-to-pay for guaranteed delivery + compliance artifacts. Out-of-market rejections are expected (procurement personas buy vendor governance tools, not engineering infrastructure) and should be explicitly disqualified, not accommodated. The SOC-2 evidence package addresses the only in-market blocker without adding enterprise bloat — control mapping and pen-test summaries are standard artifacts technical buyers request, not new features. Flat pricing with burst allowance matches how platform teams budget: predictable monthly cost, headroom for traffic spikes.",
+    "audienceAlignmentNotice": "AUDIENCE MISMATCH DETECTED: 2 out of 2 out-of-market stress-test personas rejected because this product is outside their operational scope. In-market ICP adoption is 100%. DO NOT invent enterprise features (e.g. NetSuite, SOC-2 escrow, air-gapped VPC) for an indie developer or consumer product. Keep solutions focused 100% on the core ICP (Fintech and SaaS CTOs, Platform Architects, and Lead Backend Engineers)."
+  },
+  "cohortB": {
+    "holdOutPersonas": [
+      {
+        "id": "holdout_1791080979429_0",
+        "name": "Ravi Singh",
+        "role": "fintech_cto",
+        "title": "CTO, NovaPay Payments",
+        "companyProfile": "Series B fintech processing $200M TPV, real-time payouts via webhooks to merchant partners.",
+        "monthlyLossOrProblemCost": "$18,000/mo in failed webhook deliveries causing delayed settlements and SLA penalties.",
+        "budgetCeiling": 250,
+        "budgetPeriod": "month",
+        "riskTolerance": "medium",
+        "primaryConstraint": "Needs guaranteed delivery and SOC-2 compliance; current vendor lacks SLAs and audit artifacts.",
+        "existingStack": [
+          "AWS Lambda",
+          "Kong API Gateway",
+          "PostgreSQL",
+          "Vault",
+          "Datadog"
+        ],
+        "evaluationCriteria": [
+          "100K/sec throughput guarantee",
+          "Zero-loss SLA with financial backing",
+          "SOC-2 Type II readiness",
+          "Self-hosted option for data residency",
+          "Transparent pricing without per‑webhook fees"
+        ],
+        "isHoldOut": true,
+        "isOutOfMarket": false,
+        "audienceMatch": "in_market"
+      },
+      {
+        "id": "holdout_1791080979429_1",
+        "name": "Lena Zhou",
+        "role": "platform_architect",
+        "title": "Platform Architect, CloudSync SaaS",
+        "companyProfile": "B2B SaaS platform serving 5k enterprise customers, emits ~30k webhooks/sec during peak batch windows.",
+        "monthlyLossOrProblemCost": "$9,500/mo in revenue loss from missed event notifications and manual retry engineering overhead.",
+        "budgetCeiling": 300,
+        "budgetPeriod": "month",
+        "riskTolerance": "low",
+        "primaryConstraint": "Architecture must avoid vendor lock‑in and support multi‑region deployment for data sovereignty.",
+        "existingStack": [
+          "Google Cloud Run",
+          "Envoy Proxy",
+          "Redis Streams",
+          "Terraform",
+          "Prometheus"
+        ],
+        "evaluationCriteria": [
+          "Serverless autoscaling to 100K/sec",
+          "Exponential backoff + DLQ",
+          "HMAC signing built‑in",
+          "Ability to run on own VPC/K8s",
+          "Clear cost model (flat monthly fee)"
+        ],
+        "isHoldOut": true,
+        "isOutOfMarket": false,
+        "audienceMatch": "in_market"
+      },
+      {
+        "id": "holdout_1791080979429_2",
+        "name": "Mateo Santos",
+        "role": "lead_backend_engineer",
+        "title": "Lead Backend Engineer, FinLedger",
+        "companyProfile": "Mid‑size fintech startup processing loan applications, relies on webhooks to credit bureaus and fraud providers.",
+        "monthlyLossOrProblemCost": "$4,200/mo in engineer time spent on debugging lost webhooks and building custom retry logic.",
+        "budgetCeiling": 200,
+        "budgetPeriod": "month",
+        "riskTolerance": "medium",
+        "primaryConstraint": "Team is small; cannot maintain custom webhook dispatch infrastructure; needs turnkey solution.",
+        "existingStack": [
+          "Node.js microservices",
+          "RabbitMQ",
+          "Elasticsearch",
+          "AWS S3",
+          "Grafana"
+        ],
+        "evaluationCriteria": [
+          "Zero‑ops deployment (serverless)",
+          "Automatic HMAC‑SHA256 signing",
+          "Built‑in dead‑letter queue with replay",
+          "Predictable flat‑rate pricing",
+          "SOC‑2 documentation for auditors"
+        ],
+        "isHoldOut": true,
+        "isOutOfMarket": false,
+        "audienceMatch": "in_market"
+      },
+      {
+        "id": "holdout_1791080979429_3",
+        "name": "Priya Desai",
+        "role": "procurement_director",
+        "title": "Director of Procurement, GlobalHealth InsurTech",
+        "companyProfile": "Large insurance tech firm with $1.2B GWP, centralizes vendor spend across 200+ SaaS tools.",
+        "monthlyLossOrProblemCost": "$22,000/mo in contract management overhead and potential breach fines.",
+        "budgetCeiling": 500,
+        "budgetPeriod": "month",
+        "riskTolerance": "low",
+        "primaryConstraint": "Must consolidate vendors and ensure all new tools meet enterprise security, compliance, and data residency standards without adding management overhead.",
+        "existingStack": [
+          "ServiceNow Procurement",
+          "Coupa",
+          "Azure AD",
+          "Qualys",
+          "Splunk"
+        ],
+        "evaluationCriteria": [
+          "Flat‑rate pricing with no hidden usage fees",
+          "SOC‑2 Type II report and penetration test summary available",
+          "Self‑hosted deployment option for data residency",
+          "No vendor lock‑in, easy exit clauses",
+          "Clear SLAs with financial penalties for non‑delivery"
+        ],
+        "isHoldOut": true,
+        "isOutOfMarket": true,
+        "audienceMatch": "out_of_market"
+      },
+      {
+        "id": "holdout_1791080979429_4",
+        "name": "Oliver Kim",
+        "role": "finance_controller",
+        "title": "Finance Controller, Zenith Logistics",
+        "companyProfile": "Mid‑size logistics SaaS platform handling freight tracking, processes $80M ARR, heavily reliant on event-driven integrations.",
+        "monthlyLossOrProblemCost": "$6,800/mo in unexpected overage charges from current webhook provider and reconciliation effort.",
+        "budgetCeiling": 250,
+        "budgetPeriod": "month",
+        "riskTolerance": "medium",
+        "primaryConstraint": "Finance needs predictable, transparent operating expenses; dislikes per‑event pricing that causes variance.",
+        "existingStack": [
+          "NetSuite",
+          "Snowflake",
+          "Fivetran",
+          "PagerDuty",
+          "Looker"
+        ],
+        "evaluationCriteria": [
+          "Fixed monthly fee regardless of volume",
+          "No per‑webhook overages",
+          "Ability to self‑host to avoid data egress costs",
+          "SOC‑2 readiness for audit compliance",
+          "Clear ROI calculation based on reduced manual retries"
+        ],
+        "isHoldOut": true,
+        "isOutOfMarket": true,
+        "audienceMatch": "out_of_market"
+      }
+    ],
+    "holdOutEvaluations": [
+      {
+        "personaId": "holdout_1791080979429_4",
+        "personaName": "Oliver Kim",
+        "role": "finance_controller",
+        "vote": "adopt",
+        "acceptablePrice": 500,
+        "acceptablePeriod": "month",
+        "isOutOfMarket": true,
+        "fatalObjections": [],
+        "dealMakers": [
+          "Fixed monthly fee with no per-webhook overages",
+          "SOC-2 Type II readiness",
+          "Self-hosted deployment option to avoid data egress costs"
+        ],
+        "rationale": "At $150/mo, ApexRelay would replace our current $6,800/mo in webhook overage and reconciliation costs, delivering >40x ROI. The fixed pricing aligns with our need for predictable OPEX, and the self-hosted, SOC-2 ready offering fits our compliance and data residency requirements."
+      },
+      {
+        "personaId": "holdout_1791080979429_1",
+        "personaName": "Lena Zhou",
+        "role": "platform_architect",
+        "vote": "adopt",
+        "acceptablePrice": 1000,
+        "acceptablePeriod": "month",
+        "isOutOfMarket": false,
+        "fatalObjections": [],
+        "dealMakers": [
+          "Self-hosted deployment for data sovereignty and multi-region",
+          "Built-in HMAC-SHA256 signing and exponential backoff with DLQ",
+          "Flat monthly fee with no per-webhook overages",
+          "SOC-2 Type II compliance documentation"
+        ],
+        "rationale": "At $150/mo, ApexRelay solves a $9,500/mo revenue loss problem, delivering >60x ROI. It meets all key architectural criteria: serverless autoscaling to 100K/sec, self-hosted deployment avoiding vendor lock-in, and integrates with our existing stack via standard webhook delivery. The clear flat fee and compliance readiness make it a low-risk, high-value adoption."
+      },
+      {
+        "personaId": "holdout_1791080979429_2",
+        "personaName": "Mateo Santos",
+        "role": "lead_backend_engineer",
+        "vote": "adopt",
+        "acceptablePrice": 150,
+        "acceptablePeriod": "month",
+        "isOutOfMarket": false,
+        "fatalObjections": [],
+        "dealMakers": [
+          "Self-hosted deployment option for data residency",
+          "Transparent flat-rate pricing with no overage fees"
+        ],
+        "rationale": "At $150/mo, ApexRelay solves a $4,200/mo engineering overhead problem, delivering >20x ROI. It meets all key criteria: zero-ops serverless, HMAC signing, DLQ with replay, and SOC-2 documentation. No apparent blockers; the pricing is trivial compared to the cost of maintaining custom webhook retry logic."
+      },
+      {
+        "personaId": "holdout_1791080979429_0",
+        "personaName": "Ravi Singh",
+        "role": "fintech_cto",
+        "vote": "adopt",
+        "acceptablePrice": 500,
+        "acceptablePeriod": "month",
+        "isOutOfMarket": false,
+        "fatalObjections": [],
+        "dealMakers": [
+          "SOC-2 Type II audit report",
+          "Financial backing for zero-loss SLA"
+        ],
+        "rationale": "At $150/mo, ApexRelay solves our $18k/mo webhook failure problem with >100x ROI, meets throughput and compliance needs, and fits our stack without per‑webhook fees. The self‑hosted option satisfies data residency requirements. No fatal objections remain."
+      },
+      {
+        "personaId": "holdout_1791080979429_3",
+        "personaName": "Priya Desai",
+        "role": "procurement_director",
+        "vote": "reject",
+        "acceptablePrice": 0,
+        "acceptablePeriod": "month",
+        "isOutOfMarket": true,
+        "fatalObjections": [
+          {
+            "objection": "Product is a technical webhook engine unrelated to procurement contract management; does not solve our current $22k/mo overhead problem.",
+            "severity": "blocker"
+          },
+          {
+            "objection": "No demonstrated integration with existing procurement stack (ServiceNow Procurement, Coupa) would add vendor management overhead contrary to consolidation goal.",
+            "severity": "blocker"
+          }
+        ],
+        "dealMakers": [
+          "If the product included pre-built connectors or automation for ServiceNow/Coupa contract workflows that could reduce contract management overhead.",
+          "If pricing were tied to measurable reduction in contract management costs (e.g., success-fee based on saved hours)."
+        ],
+        "rationale": "As Director of Procurement, my priority is consolidating vendors and reducing contract management overhead, not acquiring point-to-point webhook infrastructure. ApexRelay does not align with our operational needs and would increase vendor sprawl without clear ROI."
+      }
+    ],
+    "holdOutVerdict": {
+      "totalPersonas": 5,
+      "adoptCount": 4,
+      "rejectCount": 1,
+      "hesitantCount": 0,
+      "acceptanceRate": 0.8,
+      "paidAdoptCount": 4,
+      "freeAdoptCount": 0,
+      "paidAcceptanceRate": 0.8,
+      "inMarketTotal": 3,
+      "inMarketAdoptCount": 3,
+      "inMarketPaidAdoptCount": 3,
+      "inMarketHesitantCount": 0,
+      "inMarketRejectCount": 0,
+      "inMarketAcceptanceRate": 1,
+      "inMarketPaidAcceptanceRate": 1,
+      "outOfMarketTotal": 2,
+      "outOfMarketRejectCount": 1,
+      "monthlyEquivalentPrice": 150,
+      "normalizedPriceDisplay": "$150/month",
+      "priceRange": {
+        "min": 0,
+        "median": 500,
+        "max": 1000,
+        "currency": "USD",
+        "period": "month",
+        "monthlyEquivalentMedian": 500
+      },
+      "topObjections": [
+        {
+          "objection": "Product is a technical webhook engine unrelated to procurement contract management; does not solve our current $22k/mo overhead problem.",
+          "frequency": 2,
+          "severity": "blocker",
+          "citedSources": []
+        }
+      ],
+      "suggestedActionItems": [
+        "Target empirical willingness-to-pay: $500/month.",
+        "Directly address top friction: \"Product is a technical webhook engine unrelated to procurement contract management; does not solve our current $22k/mo overhead problem.\".",
+        "Scale distribution within primary ICP."
+      ]
+    },
+    "initialAcceptanceRate": 0.6,
+    "holdOutAcceptanceRate": 0.8,
+    "initialPaidAcceptanceRate": 0.6,
+    "holdOutPaidAcceptanceRate": 0.8,
+    "inMarketInitialPaidRate": 1,
+    "inMarketHoldOutPaidRate": 1,
+    "initialMedianPrice": 150,
+    "holdOutMedianPrice": 250,
+    "acceptanceRateSpread": {
+      "min": 0.8,
+      "median": 0.8,
+      "max": 0.8
+    },
+    "priceSpread": {
+      "min": 0,
+      "median": 250,
+      "max": 1000
+    },
+    "resolvedObjectionsCount": 2,
+    "totalInitialObjections": 2,
+    "objectionDeltas": [
+      {
+        "objectionTopic": "Product is outside operational scope; procurement focuses on vendor management tools (SAP Ariba, Coupa, ServiceNow, IBM OpenPages) not low-level webhook delivery engines.",
+        "beforeCount": 2,
+        "afterCount": 1,
+        "status": "reduced"
+      },
+      {
+        "objectionTopic": "Vendor financial stability and SOC-2 Type II audit evidence not demonstrated; fails compliance requirement.",
+        "beforeCount": 2,
+        "afterCount": 0,
+        "status": "resolved"
+      }
+    ],
+    "isHoldOutVerified": true,
+    "deltaSummary": "Hold-Out panel paid commercial adoption shifted by +20% (overall adoption shift: +20%, from 60% to 80%). Across 3 empirical trials, adoption range was [80% – 80%]. Semantically resolved or reduced 2 of 2 initial blockers against blinded Cohort B."
+  }
+}

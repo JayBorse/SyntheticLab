@@ -16,6 +16,22 @@ export class NebiusNemotronProvider implements AIProvider {
   private client: OpenAI | null = null;
   private baseURL: string;
 
+  private static cumulativeTokens = 0;
+
+  public static recordUsage(tokens: number): void {
+    if (tokens > 0) {
+      NebiusNemotronProvider.cumulativeTokens += tokens;
+    }
+  }
+
+  public static getCumulativeTokens(): number {
+    return NebiusNemotronProvider.cumulativeTokens;
+  }
+
+  public static resetCumulativeTokens(): void {
+    NebiusNemotronProvider.cumulativeTokens = 0;
+  }
+
   constructor(config?: NebiusProviderConfig) {
     this.baseURL = config?.baseURL ?? process.env.NEBIUS_BASE_URL ?? env.NEBIUS_BASE_URL;
     this.defaultModelId = config?.modelId ?? process.env.NVIDIA_MODEL_ID ?? env.NVIDIA_MODEL_ID;
@@ -96,6 +112,14 @@ export class NebiusNemotronProvider implements AIProvider {
             totalTokens: response.usage.total_tokens,
           }
         : undefined;
+
+      if (usage?.totalTokens) {
+        NebiusNemotronProvider.recordUsage(usage.totalTokens);
+      } else {
+        const approxPrompt = Math.ceil(messages.reduce((acc, m) => acc + (m.content?.length || 0), 0) / 4);
+        const approxComp = Math.ceil((text?.length || 0) / 4);
+        NebiusNemotronProvider.recordUsage(approxPrompt + approxComp);
+      }
 
       logger.debug('Nebius Nemotron completion finished', {
         durationMs: Date.now() - startTime,

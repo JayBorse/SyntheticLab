@@ -1,71 +1,82 @@
 @import "tailwindcss";
 
 :root {
-  /* Dark Graphite Theme (Default Instrument Panel) */
-  --bg: #0d0f14;
-  --bg-subtle: #11141b;
-  --surface-1: #151821;
-  --surface-2: #1b202c;
-  --surface-3: #222838;
-  --surface-hover: #1f2533;
+  /* Apple-Inspired Obsidian Dark Theme (Signature Keynote Black) */
+  --bg: #000000;
+  --bg-subtle: #08080a;
+  --surface-1: #101014;
+  --surface-2: #16161c;
+  --surface-3: #1f1f26;
+  --surface-hover: #262630;
 
-  --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-medium: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(255, 255, 255, 0.2);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.15);
+  --border-strong: rgba(255, 255, 255, 0.28);
 
-  --text-primary: #f3f4f6;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
 
-  /* Desaturated Status Accents */
-  --accent: #2ebd74;
-  --accent-muted: rgba(46, 189, 116, 0.12);
-  --accent-border: rgba(46, 189, 116, 0.3);
-  --accent-hover: #38d685;
+  /* Apple Pro Accents */
+  --accent: #2997ff;
+  --accent-muted: rgba(41, 151, 255, 0.12);
+  --accent-border: rgba(41, 151, 255, 0.35);
+  --accent-hover: #47a6ff;
 
-  --amber: #f59e0b;
-  --amber-muted: rgba(245, 158, 11, 0.12);
-  --amber-border: rgba(245, 158, 11, 0.3);
+  --emerald: #30d158;
+  --emerald-muted: rgba(48, 209, 88, 0.12);
+  --emerald-border: rgba(48, 209, 88, 0.3);
 
-  --rose: #f43f5e;
-  --rose-muted: rgba(244, 63, 94, 0.12);
-  --rose-border: rgba(244, 63, 94, 0.3);
+  --amber: #ff9f0a;
+  --amber-muted: rgba(255, 159, 10, 0.12);
+  --amber-border: rgba(255, 159, 10, 0.3);
 
+  --rose: #ff453a;
+  --rose-muted: rgba(255, 69, 58, 0.12);
+  --rose-border: rgba(255, 69, 58, 0.3);
+
+  /* Apple Continuous Squircle Radii - Unified Consistent Hierarchy */
+  --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 10px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 20px;
 }
 
 [data-theme="light"], .light {
-  /* Clean Technical Light Theme */
-  --bg: #f8fafc;
-  --bg-subtle: #f1f5f9;
+  /* Apple Signature Light Theme */
+  --bg: #f5f5f7;
+  --bg-subtle: #ebebee;
   --surface-1: #ffffff;
-  --surface-2: #f1f5f9;
-  --surface-3: #e2e8f0;
-  --surface-hover: #e8eef5;
+  --surface-2: #f5f5f7;
+  --surface-3: #e8e8ed;
+  --surface-hover: #e1e1e6;
 
-  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-subtle: rgba(0, 0, 0, 0.07);
   --border-medium: rgba(0, 0, 0, 0.14);
-  --border-strong: rgba(0, 0, 0, 0.22);
+  --border-strong: rgba(0, 0, 0, 0.24);
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-primary: #1d1d1f;
+  --text-secondary: #515154;
+  --text-muted: #86868b;
 
-  --accent: #059669;
-  --accent-muted: rgba(5, 150, 105, 0.1);
-  --accent-border: rgba(5, 150, 105, 0.25);
-  --accent-hover: #047857;
+  --accent: #0071e3;
+  --accent-muted: rgba(0, 113, 227, 0.1);
+  --accent-border: rgba(0, 113, 227, 0.28);
+  --accent-hover: #0077ed;
 
-  --amber: #d97706;
-  --amber-muted: rgba(217, 119, 6, 0.1);
-  --amber-border: rgba(217, 119, 6, 0.25);
+  --emerald: #28cd41;
+  --emerald-muted: rgba(40, 205, 65, 0.1);
+  --emerald-border: rgba(40, 205, 65, 0.28);
 
-  --rose: #e11d48;
-  --rose-muted: rgba(225, 29, 72, 0.1);
-  --rose-border: rgba(225, 29, 72, 0.25);
+  --amber: #f58300;
+  --amber-muted: rgba(245, 131, 0, 0.1);
+  --amber-border: rgba(245, 131, 0, 0.28);
+
+  --rose: #e02424;
+  --rose-muted: rgba(224, 36, 36, 0.1);
+  --rose-border: rgba(224, 36, 36, 0.28);
 }
 
 body {

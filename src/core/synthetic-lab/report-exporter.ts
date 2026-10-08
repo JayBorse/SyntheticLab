@@ -6,6 +6,7 @@ import {
   PersonaEvaluation,
   OptimizedPitch,
   HoldOutRetestResult,
+  CompetitiveBattlecard,
 } from './types';
 
 export interface SimulationExportData {
@@ -16,6 +17,7 @@ export interface SimulationExportData {
   evaluations: PersonaEvaluation[];
   optimizedPitch: OptimizedPitch | null;
   holdOutResult: HoldOutRetestResult | null;
+  battlecard?: CompetitiveBattlecard | null;
   telemetry: {
     modelFast: string;
     modelReasoning: string;
@@ -114,6 +116,26 @@ export function generateMarkdownReport(data: SimulationExportData): string {
   } else {
     lines.push('### Market Intelligence Research:');
     lines.push('_No external competitor evidence was gathered for this custom product niche. Persona evaluations were computed purely from independent buyer economic models and pitch parameters._\n');
+  }
+
+  // 3.5. Competitive Intelligence Battlecard (Grounded in Tavily Evidence)
+  const battlecard = data.battlecard;
+  if (battlecard && battlecard.competitors && battlecard.competitors.length > 0) {
+    lines.push('### ⚔️ Competitive Intelligence Battlecard (Ground Truth via Tavily):');
+    lines.push(`**Market Category:** ${battlecard.marketCategory}\n`);
+    lines.push(`**Strategic Positioning:** ${battlecard.positioningAdvantage}\n`);
+    lines.push('| Competitor | Pricing Model | Developer Grievance / Trap | Switching Cost | Our Advantage |');
+    lines.push('| :--- | :--- | :--- | :--- | :--- |');
+    battlecard.competitors.forEach((c) => {
+      const safeTrap = c.hiddenTrapOrFriction.replace(/\|/g, '-');
+      const safeAdv = c.advantageOverCompetitor.replace(/\|/g, '-');
+      lines.push(`| **${c.name}** (${c.domain}) | ${c.pricingModel} | ${safeTrap} | **${c.switchingCost.toUpperCase()}** | ${safeAdv} |`);
+    });
+    lines.push('');
+    if (battlecard.opportunitySummary) {
+      lines.push(`> [!TIP]`);
+      lines.push(`> **Market Opportunity:** ${battlecard.opportunitySummary}\n`);
+    }
   }
 
   // 4. Cohort A: Individual Buyer Evaluations

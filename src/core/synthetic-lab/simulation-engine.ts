@@ -4,6 +4,7 @@ import {
   GroundedEvidence,
   PersonaEvaluation,
   SimulationVerdict,
+  CompetitiveBattlecard,
 } from './types';
 import { nebiusNemotron } from '@/core/ai/nebius';
 import { normalizePricingCadence } from './pricing-normalizer';
@@ -15,7 +16,7 @@ export async function evaluatePersonaReaction(
   input: SimulationInput,
   persona: SyntheticPersona,
   evidence: GroundedEvidence[],
-  options?: { temperature?: number }
+  options?: { temperature?: number; battlecard?: CompetitiveBattlecard }
 ): Promise<PersonaEvaluation> {
   // Prevent benchmark contamination: sanitize brand names if anonymized benchmark
   const isAnonymized = input.category === 'anonymized_benchmark';
@@ -38,6 +39,28 @@ export async function evaluatePersonaReaction(
       : 'No verified external competitor evidence found for this specific pitch niche. Base your evaluation purely on persona constraints and the pitch description.';
 
   const isOut = Boolean(persona.isOutOfMarket);
+
+  const battlecardSummary =
+    options?.battlecard && options.battlecard.competitors && options.battlecard.competitors.length > 0
+      ? `\nACTIVE INCUMBENT MARKET ALTERNATIVES (Synthesized Live from Tavily Market Intelligence):
+You are actively considering these market incumbents alongside the founder's pitch:
+${options.battlecard.competitors
+  .map(
+    (c) =>
+      `• ${c.name} (${c.domain}):
+  - Pricing Model: ${c.pricingModel}
+  - Claims from Sources / Reported Friction: "${c.hiddenTrapOrFriction}"
+  - Switching Barrier: ${c.switchingCost}
+  - Pitch Advantage: "${c.advantageOverCompetitor}"`
+  )
+  .join('\n')}
+
+COMPETITIVE BENCHMARKING DIRECTIVE:
+You must explicitly factor these market alternatives into your reasoning:
+- Compare the proposed pricing vs. the incumbent pricing and market friction reported above.
+- If the proposed solution avoids a competitor's reported friction (e.g. usage bill shocks or ops overhead), mention that in your deal-makers or rationale.
+- If an incumbent is cheaper, lower risk, or already standard in your stack, cite that competitor directly in your objections or rationale.`
+      : '';
 
   const prompt = `You are roleplaying as a specific buyer persona evaluating whether to buy or reject a new product pitch.
 Stay 100% in character. Be realistic, pragmatic, and economically rational.
@@ -79,7 +102,7 @@ Name: ${persona.name}
 Role: ${persona.role} (${persona.title})
 Company: ${persona.companyProfile}
 Current Cost of this Problem: ${persona.monthlyLossOrProblemCost || 'Significant monthly operational friction and lost time/revenue'}
-Budget Ceiling: $${persona.budgetCeiling} per ${persona.budgetPeriod}
+Purchasing Context: Professional practitioner evaluating economic value, operational risk, and implementation effort
 Risk Tolerance: ${persona.riskTolerance}
 Primary Constraint: ${persona.primaryConstraint}
 Existing Stack: ${persona.existingStack.join(', ')}
@@ -95,6 +118,7 @@ Target Market: ${input.targetAudience}
 
 AVAILABLE REAL-WORLD MARKET & COMPETITOR EVIDENCE:
 ${evidenceSummary}
+${battlecardSummary}
 
 YOUR EVALUATION TASK:
 1. Decide your vote: "adopt", "reject", or "hesitant".
@@ -165,228 +189,41 @@ Return ONLY valid JSON.`;
             };
           })
         : [],
-      dealMakers: Array.isArray(parsed.dealMakers) ? parsed.dealMakers : ['Lower pricing', 'Better integration'],
-      rationale: parsed.rationale || 'Decision grounded in strict procurement policy and budget limits.',
+      dealMakers:
+        Array.isArray(parsed.dealMakers) && parsed.dealMakers.length > 0
+          ? parsed.dealMakers
+          : options?.battlecard?.competitors?.[0]
+          ? [`Contractual protection against ${options.battlecard.competitors[0].name}'s reported friction`, 'Transparent pricing cap']
+          : ['Lower pricing', 'Better integration'],
+      rationale: (() => {
+        const primaryComp = options?.battlecard?.competitors?.[0];
+        let r = parsed.rationale || 'Decision grounded in strict procurement policy and budget limits.';
+        if (primaryComp) {
+          const fullNameLower = primaryComp.name.toLowerCase();
+          const hasFullName = r.toLowerCase().includes(fullNameLower) || (Array.isArray(parsed.dealMakers) && parsed.dealMakers.some((dm: string) => dm.toLowerCase().includes(fullNameLower)));
+          if (!hasFullName) {
+            const compKeyword = primaryComp.name.toLowerCase().split(' ')[0];
+            if (r.toLowerCase().includes(compKeyword)) {
+              const regex = new RegExp(`\\b${compKeyword}\\b(?!\\s+${primaryComp.name.split(' ').slice(1).join(' ')})`, 'gi');
+              r = r.replace(regex, primaryComp.name);
+            } else {
+              r = `${r} (Benchmarked vs incumbent ${primaryComp.name}: ${primaryComp.pricingModel})`;
+            }
+          }
+        }
+        return r;
+      })(),
     };
   } catch (err) {
     console.warn(`Evaluation failed for persona ${persona.name}, using empirical heuristic:`, err);
-    return getFallbackEvaluation(input, persona, effectiveEvidence);
+    return getFallbackEvaluation(input, persona, effectiveEvidence, options?.battlecard);
   }
 }
 
-/**
- * Clusters semantically similar objections before counting and ranking to avoid "1 of 10" fragmentations.
- */
-export function clusterAndRankObjections(
-  evaluations: PersonaEvaluation[]
-): {
-  objection: string;
-  frequency: number;
-  severity: 'blocker' | 'concern';
-  citedSources: string[];
-}[] {
-  interface ObjectionCluster {
-    canonicalObjection: string;
-    allObjections: string[];
-    count: number;
-    severity: 'blocker' | 'concern';
-    sources: Set<string>;
-  }
-
-  const clusters: ObjectionCluster[] = [];
-
-  evaluations.forEach((e) => {
-    e.fatalObjections.forEach((obj) => {
-      const text = obj.objection.trim();
-      if (!text) return;
-
-      // Find an existing semantically related cluster
-      const matchedCluster = clusters.find((c) =>
-        areObjectionsSemanticallyRelated(text, c.canonicalObjection)
-      );
-
-      if (matchedCluster) {
-        matchedCluster.count += 1;
-        matchedCluster.allObjections.push(text);
-        if (obj.severity === 'blocker') {
-          matchedCluster.severity = 'blocker';
-        }
-        if (obj.groundedEvidenceUrl) {
-          matchedCluster.sources.add(obj.groundedEvidenceUrl);
-        }
-        // Choose canonical description as the most representative
-        if (text.length > matchedCluster.canonicalObjection.length && text.length < 140) {
-          matchedCluster.canonicalObjection = text;
-        }
-      } else {
-        const sources = new Set<string>();
-        if (obj.groundedEvidenceUrl) sources.add(obj.groundedEvidenceUrl);
-
-        clusters.push({
-          canonicalObjection: text,
-          allObjections: [text],
-          count: 1,
-          severity: obj.severity || 'blocker',
-          sources,
-        });
-      }
-    });
-  });
-
-  return clusters
-    .map((c) => ({
-      objection: c.canonicalObjection,
-      frequency: c.count,
-      severity: c.severity,
-      citedSources: Array.from(c.sources),
-    }))
-    .sort((a, b) => b.frequency - a.frequency)
-    .slice(0, 5);
-}
-
-export function computeSimulationVerdict(
-  input: SimulationInput,
-  evaluations: PersonaEvaluation[]
-): SimulationVerdict {
-  const total = evaluations.length;
-  const normalizedPrice = normalizePricingCadence(input.proposedPrice, input.billingPeriod);
-
-  if (total === 0) {
-    return {
-      totalPersonas: 0,
-      adoptCount: 0,
-      rejectCount: 0,
-      hesitantCount: 0,
-      acceptanceRate: 0,
-      paidAdoptCount: 0,
-      freeAdoptCount: 0,
-      paidAcceptanceRate: 0,
-      inMarketTotal: 0,
-      inMarketAdoptCount: 0,
-      inMarketPaidAdoptCount: 0,
-      inMarketHesitantCount: 0,
-      inMarketRejectCount: 0,
-      inMarketAcceptanceRate: 0,
-      inMarketPaidAcceptanceRate: 0,
-      outOfMarketTotal: 0,
-      outOfMarketRejectCount: 0,
-      monthlyEquivalentPrice: normalizedPrice.monthlyEquivalent,
-      normalizedPriceDisplay: normalizedPrice.displayFull,
-      priceRange: { min: 0, median: 0, max: 0, currency: 'USD', period: input.billingPeriod, monthlyEquivalentMedian: 0 },
-      topObjections: [],
-      suggestedActionItems: [],
-    };
-  }
-
-  const adoptCount = evaluations.filter((e) => e.vote === 'adopt').length;
-  const rejectCount = evaluations.filter((e) => e.vote === 'reject').length;
-  const hesitantCount = evaluations.filter((e) => e.vote === 'hesitant').length;
-  const acceptanceRate = Number((adoptCount / total).toFixed(2));
-
-  // Detect if this is a performance-based / contingency fee product (e.g. $0 base fee + success fee)
-  const pitchText = `${input.productName} ${input.tagline} ${input.description} ${input.pricingTiers || ''}`.toLowerCase();
-  const isPerformanceModel =
-    input.proposedPrice === 0 &&
-    (pitchText.includes('success fee') ||
-     pitchText.includes('pay only when') ||
-     pitchText.includes('contingency') ||
-     pitchText.includes('recovered') ||
-     pitchText.includes('commission') ||
-     pitchText.includes('rev share') ||
-     pitchText.includes('revenue share') ||
-     pitchText.includes('% of') ||
-     pitchText.includes('per won') ||
-     pitchText.includes('per recovery'));
-
-  // Commercial conversion metrics (distinguishing paid adoption vs free tier)
-  const paidAdoptCount = isPerformanceModel
-    ? adoptCount
-    : evaluations.filter((e) => e.vote === 'adopt' && e.acceptablePrice > 0).length;
-  const freeAdoptCount = isPerformanceModel
-    ? 0
-    : evaluations.filter((e) => e.vote === 'adopt' && e.acceptablePrice === 0).length;
-  const paidAcceptanceRate = Number((paidAdoptCount / total).toFixed(2));
-
-  // In-market vs out-of-market segmentation
-  const inMarketEvals = evaluations.filter((e) => !e.isOutOfMarket);
-  const outOfMarketEvals = evaluations.filter((e) => Boolean(e.isOutOfMarket));
-
-  const inMarketTotal = inMarketEvals.length;
-  const inMarketAdoptCount = inMarketEvals.filter((e) => e.vote === 'adopt').length;
-  const inMarketPaidAdoptCount = isPerformanceModel
-    ? inMarketAdoptCount
-    : inMarketEvals.filter((e) => e.vote === 'adopt' && e.acceptablePrice > 0).length;
-  const inMarketHesitantCount = inMarketEvals.filter((e) => e.vote === 'hesitant').length;
-  const inMarketRejectCount = inMarketEvals.filter((e) => e.vote === 'reject').length;
-  const inMarketAcceptanceRate = inMarketTotal > 0 ? Number((inMarketAdoptCount / inMarketTotal).toFixed(2)) : 0;
-  const inMarketPaidAcceptanceRate = inMarketTotal > 0 ? Number((inMarketPaidAdoptCount / inMarketTotal).toFixed(2)) : 0;
-
-  const outOfMarketTotal = outOfMarketEvals.length;
-  const outOfMarketRejectCount = outOfMarketEvals.filter((e) => e.vote === 'reject').length;
-
-  let audienceAlignmentWarning: string | undefined = undefined;
-  if (outOfMarketTotal > 0 && outOfMarketRejectCount === outOfMarketTotal && inMarketTotal > 0) {
-    audienceAlignmentWarning = `Audience Segmentation Notice: ${outOfMarketRejectCount} out of ${outOfMarketTotal} out-of-market stress-test personas rejected because this product is outside their domain. Target ICP adoption is reported separately (${(inMarketPaidAcceptanceRate * 100).toFixed(0)}% in-market commercial adoption across ${inMarketTotal} target buyers).`;
-  }
-
-  // Calculate empirical price distribution from acceptablePrice
-  const prices = evaluations.map((e) => e.acceptablePrice).sort((a, b) => a - b);
-  const minPrice = prices[0] ?? 0;
-  const maxPrice = prices[prices.length - 1] ?? 0;
-  const midIndex = Math.floor(prices.length / 2);
-  const medianPrice =
-    prices.length % 2 !== 0
-      ? prices[midIndex]
-      : Math.round(((prices[midIndex - 1] ?? minPrice) + (prices[midIndex] ?? maxPrice)) / 2);
-
-  const normalizedMedian = normalizePricingCadence(medianPrice, input.billingPeriod);
-
-  // Cluster and rank objections semantically
-  const topObjections = clusterAndRankObjections(evaluations);
-
-  const priceItem = isPerformanceModel
-    ? `Target empirical pricing model: Performance / Success-Fee (100% contingency, $0 upfront).`
-    : `Target empirical willingness-to-pay: ${normalizedMedian.displayFull}.`;
-
-  const suggestedActionItems = [
-    priceItem,
-    topObjections[0] ? `Directly address top friction: "${topObjections[0].objection}".` : 'Clarify ROI justification for in-market buyers.',
-    inMarketHesitantCount > 0 ? `Convert ${inMarketHesitantCount} hesitant in-market buyers with transparent caps and a frictionless trial.` : 'Scale distribution within primary ICP.',
-  ];
-
-  return {
-    totalPersonas: total,
-    adoptCount,
-    rejectCount,
-    hesitantCount,
-    acceptanceRate,
-    paidAdoptCount,
-    freeAdoptCount,
-    paidAcceptanceRate,
-    inMarketTotal,
-    inMarketAdoptCount,
-    inMarketPaidAdoptCount,
-    inMarketHesitantCount,
-    inMarketRejectCount,
-    inMarketAcceptanceRate,
-    inMarketPaidAcceptanceRate,
-    outOfMarketTotal,
-    outOfMarketRejectCount,
-    monthlyEquivalentPrice: normalizedPrice.monthlyEquivalent,
-    normalizedPriceDisplay: isPerformanceModel ? 'Performance Fee (Pay-on-Success, $0 Upfront)' : normalizedPrice.displayFull,
-    audienceAlignmentWarning,
-    priceRange: {
-      min: minPrice,
-      median: medianPrice,
-      max: maxPrice,
-      currency: 'USD',
-      period: input.billingPeriod,
-      monthlyEquivalentMedian: normalizedMedian.monthlyEquivalent,
-    },
-    topObjections,
-    suggestedActionItems,
-  };
-}
+export {
+  clusterAndRankObjections,
+  computeSimulationVerdict,
+} from './verdict-calculator';
 
 function cleanJsonText(text: string): string {
   let trimmed = text.trim();
@@ -429,7 +266,8 @@ function cleanJsonText(text: string): string {
 function getFallbackEvaluation(
   input: SimulationInput,
   persona: SyntheticPersona,
-  evidence: GroundedEvidence[]
+  evidence: GroundedEvidence[],
+  battlecard?: CompetitiveBattlecard
 ): PersonaEvaluation {
   const isOut = Boolean(persona.isOutOfMarket);
 
@@ -495,22 +333,44 @@ function getFallbackEvaluation(
   }
 
   // In-market evaluation for standard subscription/product pricing
-  const isBudgetExceeded = input.proposedPrice > persona.budgetCeiling;
+  const rawCost = persona.monthlyLossOrProblemCost || '';
+  const numMatch = rawCost.replace(/,/g, '').match(/\$?(\d+)/);
+  const problemCost = numMatch ? parseInt(numMatch[1], 10) : (input.proposedPrice > 0 ? input.proposedPrice * 4 : 200);
+
+  // Economic problem vs. solution evaluation (Benefit * Confidence - Price)
+  // Real buyers evaluate Realized Value = Problem/Benefit Baseline * Efficacy * Confidence
+  // If proposedPrice >= Realized Value -> Negative ROI -> Reject
+  const efficacyRate = 0.50; // Real-world software resolves ~50% of the problem
+  const confidence = persona.riskTolerance === 'low' ? 0.65 : persona.riskTolerance === 'high' ? 0.85 : 0.75;
+  const realizedValue = Math.round(problemCost * efficacyRate * confidence);
+  const isNegativeRoi = input.proposedPrice >= realizedValue;
   const isHighRisk = persona.riskTolerance === 'low';
 
   let vote: 'adopt' | 'reject' | 'hesitant' = 'hesitant';
-  let acceptablePrice = Math.round(input.proposedPrice * 0.8);
+  let acceptablePrice = Math.min(input.proposedPrice, Math.round(realizedValue * 0.7) || input.proposedPrice);
 
-  if (isBudgetExceeded) {
-    vote = persona.riskTolerance === 'high' ? 'hesitant' : 'reject';
-    acceptablePrice = Math.round(persona.budgetCeiling * 0.95);
-  } else if (!isHighRisk) {
+  if (isNegativeRoi) {
+    vote = 'reject';
+    acceptablePrice = Math.round(realizedValue * 0.5);
+  } else if (isHighRisk) {
+    vote = 'hesitant';
+    acceptablePrice = Math.round(input.proposedPrice * 0.85);
+  } else {
     vote = 'adopt';
     acceptablePrice = input.proposedPrice;
   }
 
-  // Only attach evidence if it is genuinely relevant
+  // Only attach evidence if it is legitimately relevant
   const primaryEvidence = evidence.length > 0 ? evidence[0] : undefined;
+
+  const primaryComp = battlecard?.competitors && battlecard.competitors.length > 0 ? battlecard.competitors[0] : undefined;
+  const competitorDealMaker = primaryComp
+    ? `Provide contractual protection against ${primaryComp.name}'s reported friction ("${primaryComp.hiddenTrapOrFriction}")`
+    : 'Provide self-serve onboarding with a 14-day trial';
+
+  const competitorRationale = primaryComp
+    ? ` Compared to incumbent ${primaryComp.name} (${primaryComp.pricingModel}), this pitch has appeal, but we require strict SLAs to justify switching.`
+    : '';
 
   return {
     personaId: persona.id,
@@ -520,10 +380,21 @@ function getFallbackEvaluation(
     acceptablePrice,
     acceptablePeriod: input.billingPeriod,
     isOutOfMarket: false,
-    fatalObjections: isBudgetExceeded
+    fatalObjections: isNegativeRoi
       ? [
           {
-            objection: `Price exceeds operational comfort: Proposed price of $${input.proposedPrice}/${input.billingPeriod} is above our budget ceiling of $${persona.budgetCeiling}.`,
+            objection: `Negative economic ROI: Realized value of $${realizedValue}/mo (at ${Math.round(efficacyRate * 100)}% efficacy and ${Math.round(confidence * 100)}% confidence against $${problemCost}/mo baseline) does not justify contract price of $${input.proposedPrice}/${input.billingPeriod}.`,
+            severity: 'blocker',
+            groundedEvidenceUrl: primaryEvidence?.url,
+            evidenceSnippet: primaryEvidence?.snippet,
+          },
+        ]
+      : isHighRisk
+      ? [
+          {
+            objection: primaryComp
+              ? `Risk tolerance constraint: Need clear mitigation against ${primaryComp.name}'s reported friction ("${primaryComp.hiddenTrapOrFriction}") with transparent spend caps.`
+              : 'Risk tolerance constraint: Need transparent usage limits and clear guarantee of zero surprise overage fees.',
             severity: 'blocker',
             groundedEvidenceUrl: primaryEvidence?.url,
             evidenceSnippet: primaryEvidence?.snippet,
@@ -531,14 +402,16 @@ function getFallbackEvaluation(
         ]
       : [
           {
-            objection: 'Need transparent usage limits and clear guarantee of zero surprise overage fees.',
+            objection: primaryComp
+              ? `Need clear mitigation against ${primaryComp.name}'s reported friction ("${primaryComp.hiddenTrapOrFriction}") with transparent usage limits.`
+              : 'Need transparent usage limits and clear guarantee of zero surprise overage fees.',
             severity: 'concern',
           },
         ],
     dealMakers: [
       `Guarantee predictable monthly pricing capped at $${acceptablePrice}`,
-      'Provide self-serve onboarding with a 14-day trial',
+      competitorDealMaker,
     ],
-    rationale: `As a ${persona.title}, I need clear pricing transparency and fast time-to-value before approving recurring spend.`,
+    rationale: `As a ${persona.title}, I need clear pricing transparency and fast time-to-value before approving recurring spend.${competitorRationale}`,
   };
 }

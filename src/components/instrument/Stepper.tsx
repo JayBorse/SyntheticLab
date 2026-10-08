@@ -21,7 +21,7 @@ export const Stepper: React.FC<StepperProps> = ({ steps, className = '' }) => {
   return (
     <nav
       aria-label="Simulation pipeline progress"
-      className={`w-full bg-[var(--surface-1)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-3 sm:p-4 ${className}`}
+      className={`w-full bg-[var(--surface-1)]/80 backdrop-blur-2xl border border-[var(--border-subtle)] rounded-2xl p-4 sm:p-5 shadow-sm ${className}`}
     >
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 md:gap-1 relative">
         {steps.map((step, index) => {
