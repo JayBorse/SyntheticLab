@@ -17,7 +17,8 @@ export { PRESET_BATTLECARDS };
  */
 export async function generateCompetitiveBattlecard(
   input: SimulationInput,
-  evidence: GroundedEvidence[]
+  evidence: GroundedEvidence[],
+  options?: { marketSynthesis?: string }
 ): Promise<CompetitiveBattlecard> {
   // 1. Check if matching preset exists
   const presetKey = Object.keys(PRESET_BATTLECARDS).find((key) => {
@@ -36,6 +37,8 @@ export async function generateCompetitiveBattlecard(
   if (input.category in PRESET_BATTLECARDS && input.productName.toLowerCase().includes('auditpulse')) {
     return PRESET_BATTLECARDS.b2b_saas;
   }
+
+  const effectiveSynthesis = options?.marketSynthesis || evidence.find((e) => e.tavilyAnswer)?.tavilyAnswer;
 
   // 2. Generate live battlecard using Nebius Nemotron and Tavily evidence
   if (evidence.length > 0) {
@@ -58,6 +61,7 @@ PRODUCT PITCH:
 
 REAL-WORLD EVIDENCE FROM TAVILY SEARCH:
 ${evidenceContext}
+${effectiveSynthesis ? `\nTAVILY AI MARKET CONSENSUS SYNTHESIS:\n"${effectiveSynthesis}"\n` : ''}
 
 TASK:
 Identify up to 10 real competitors/alternatives (either mentioned in the evidence or standard incumbents in this exact niche).
@@ -113,7 +117,7 @@ Return ONLY valid JSON.`;
       const parsed = JSON.parse(cleaned);
 
       if (Array.isArray(parsed.competitors) && parsed.competitors.length > 0) {
-        const competitors: CompetitorProfile[] = parsed.competitors.slice(0, 10).map((c: Partial<CompetitorProfile>, idx: number) => ({
+        const competitors: CompetitorProfile[] = parsed.competitors.slice(0, 10).map((c: Partial<CompetitorProfile> & { marketShareInSwarm?: number; vulnerability?: string }, idx: number) => ({
           id: `comp_live_${Date.now()}_${idx}`,
           name: c.name || `Incumbent Alternative #${idx + 1}`,
           domain: c.domain || 'market-leader.com',
@@ -123,8 +127,8 @@ Return ONLY valid JSON.`;
           sourceUrl: c.sourceUrl || (evidence[idx]?.url ?? 'https://tavily.com'),
           switchingCost: c.switchingCost === 'low' || c.switchingCost === 'high' ? c.switchingCost : 'medium',
           advantageOverCompetitor: c.advantageOverCompetitor || 'More predictable pricing and frictionless self-serve onboarding.',
-          marketShareInSwarm: typeof (c as any).marketShareInSwarm === 'number' ? (c as any).marketShareInSwarm : Math.max(3, 28 - idx * 3),
-          vulnerability: (c as any).vulnerability || c.hiddenTrapOrFriction || 'Pricing opacity',
+          marketShareInSwarm: typeof c.marketShareInSwarm === 'number' ? c.marketShareInSwarm : Math.max(3, 28 - idx * 3),
+          vulnerability: c.vulnerability || c.hiddenTrapOrFriction || 'Pricing opacity',
         }));
 
         return {
@@ -133,6 +137,7 @@ Return ONLY valid JSON.`;
           competitors,
           positioningAdvantage: parsed.positioningAdvantage || `${input.productName} delivers transparent pricing and direct workflow integration without incumbent bloat.`,
           opportunitySummary: parsed.opportunitySummary || `Disaffected buyers seeking relief from incumbent pricing traps represent an immediate adoption wedge.`,
+          tavilyMarketSynthesis: effectiveSynthesis || undefined,
           generatedAt: Date.now(),
         };
       }
@@ -142,7 +147,11 @@ Return ONLY valid JSON.`;
   }
 
   // 3. Resilient Heuristic Battlecard Fallback
-  return generateFallbackBattlecard(input, evidence);
+  const fallback = generateFallbackBattlecard(input, evidence);
+  if (effectiveSynthesis) {
+    fallback.tavilyMarketSynthesis = effectiveSynthesis;
+  }
+  return fallback;
 }
 
 function generateFallbackBattlecard(input: SimulationInput, evidence: GroundedEvidence[]): CompetitiveBattlecard {

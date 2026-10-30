@@ -4,16 +4,11 @@ import React, { useState } from 'react';
 import {
   ShieldAlert,
   ExternalLink,
-  Zap,
-  TrendingUp,
   AlertTriangle,
-  Layers,
   Sparkles,
   ArrowRight,
   Search,
-  Database,
   Crosshair,
-  BarChart3,
   CheckCircle2,
 } from 'lucide-react';
 import { CompetitiveBattlecard } from '@/core/synthetic-lab/types';
@@ -98,6 +93,30 @@ export const BattlecardMatrix: React.FC<BattlecardMatrixProps> = ({
           </button>
         </div>
       </div>
+
+      {battlecard.tavilyMarketSynthesis && (
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-cyan-950/40 via-blue-950/30 to-purple-950/20 border border-cyan-500/30 p-4 sm:p-5 shadow-inner">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 shrink-0 mt-0.5">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-cyan-400 font-semibold flex items-center gap-1.5">
+                  <span>Tavily AI Deep Consensus Synthesis</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono">Live Grounding</span>
+                </span>
+                <span className="text-[11px] text-[var(--text-tertiary)] font-mono">
+                  Autonomous Web Reconnaissance
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed italic">
+                &ldquo;{battlecard.tavilyMarketSynthesis}&rdquo;
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'matrix' ? (
         <>

@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { sparWithBuyer, extractPriceFromFreeText } from '../src/core/synthetic-lab/negotiation-engine';
+import { sparWithBuyer, extractPriceFromFreeText, SparringResponse } from '../src/core/synthetic-lab/negotiation-engine';
 import {
   SimulationInput,
   SyntheticPersona,
@@ -356,13 +356,15 @@ export const products: BenchmarkProduct[] = [
   },
 ];
 
+export type BenchmarkResponse = SparringResponse & { isStable?: boolean };
+
 export interface TestCase {
   id: string;
   name: string;
   description: string;
   buildOffer: (product: BenchmarkProduct) => string;
   validate: (
-    res: any,
+    res: BenchmarkResponse,
     product: BenchmarkProduct
   ) => { pass: boolean; reason: string };
   isMultiTurn?: boolean;
@@ -580,7 +582,7 @@ export const testCases: TestCase[] = [
       }
     },
     validate: (res) => {
-      const pass = res.isStable && res.updatedVote !== 'adopt';
+      const pass = Boolean(res.isStable && res.updatedVote !== 'adopt');
       return { pass, reason: pass ? 'State strictly preserved across 3 turns without fatigue flip' : `Failed: state drift or fatigue flip detected` };
     },
   },
@@ -592,7 +594,7 @@ async function runLiveBenchmark() {
   console.log(`Testing ${testCases.length} Adversarial Cases across ${products.length} Diverse Products`);
   console.log('======================================================================\n');
 
-  const transcripts: any[] = [];
+  const transcripts: Record<string, unknown>[] = [];
   const caseStats: Record<string, { total: number; passed: number }> = {};
   const productStats: Record<string, { total: number; passed: number }> = {};
 
@@ -619,7 +621,7 @@ async function runLiveBenchmark() {
       for (let rep = 1; rep <= REPETITIONS; rep++) {
         const offer = testCase.buildOffer(product);
 
-        let finalResponse: any;
+        let finalResponse: BenchmarkResponse | undefined;
         let isStable = true;
 
         if (testCase.isMultiTurn) {
@@ -687,6 +689,8 @@ async function runLiveBenchmark() {
             existingChecklist,
           });
         }
+
+        if (!finalResponse) continue;
 
         const validation = testCase.validate(finalResponse, product);
         caseStats[testCase.id].total++;

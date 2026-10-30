@@ -1,9 +1,11 @@
 import { NextRequest } from 'next/server';
-import { SimulationInput, SimulationRunEvent, SyntheticPersona, GroundedEvidence, PersonaEvaluation, HoldOutRetestResult } from '@/core/synthetic-lab/types';
+import { SimulationInput, SimulationRunEvent, SyntheticPersona, PersonaEvaluation, HoldOutRetestResult, OptimizedPitch } from '@/core/synthetic-lab/types';
 import { generateSyntheticPersonas } from '@/core/synthetic-lab/persona-generator';
-import { scoutMarketEvidence } from '@/core/synthetic-lab/market-scout';
+import { scoutMarketBrief } from '@/core/synthetic-lab/market-scout';
 import { generateCompetitiveBattlecard } from '@/core/synthetic-lab/battlecard-generator';
 import { evaluatePersonaReaction, computeSimulationVerdict } from '@/core/synthetic-lab/simulation-engine';
+import { optimizeProductPitch } from '@/core/synthetic-lab/optimizer';
+import { executeHoldOutRetest } from '@/core/synthetic-lab/holdout-retest';
 import { checkSimulationRateLimit } from '@/core/security/rate-limiter';
 import { NebiusNemotronProvider } from '@/core/ai/nebius';
 
@@ -77,26 +79,30 @@ export async function POST(req: NextRequest) {
           data: { personas },
         });
 
-        // Stage 3: Grounding Market Evidence (Tavily Search API)
+        // Stage 3: Grounding Market Evidence (Tavily AI Search & Synthesis Engine)
         emit({
           stage: 'grounding_market',
-          message: `Scouting live competitor pricing and developer friction via Tavily Search API...`,
+          message: `Scouting live competitor pricing and developer friction via Tavily Deep Search...`,
           timestamp: Date.now(),
         });
 
-        const evidence: GroundedEvidence[] = await scoutMarketEvidence(input);
+        const { evidence, marketConsensus } = await scoutMarketBrief(input);
 
-        // Concurrently synthesize competitive battlecard matrix across up to 10 competitors from Tavily evidence
-        const battlecard = await generateCompetitiveBattlecard(input, evidence).catch((err) => {
+        // Concurrently synthesize competitive battlecard matrix across up to 10 competitors from Tavily evidence & market consensus
+        const battlecard = await generateCompetitiveBattlecard(input, evidence, {
+          marketSynthesis: marketConsensus,
+        }).catch((err) => {
           console.warn('[stream] Battlecard synthesis fallback:', err);
           return null;
         });
 
         emit({
           stage: 'grounding_market',
-          message: `Retrieved ${evidence.length} verified market evidence citations across Reddit, G2, and competitor pricing pages.`,
+          message: marketConsensus
+            ? `Retrieved ${evidence.length} verified market evidence citations + Tavily AI market consensus synthesis.`
+            : `Retrieved ${evidence.length} verified market evidence citations across Reddit, G2, and competitor pricing pages.`,
           timestamp: Date.now(),
-          data: { evidence },
+          data: { evidence, marketConsensus },
         });
 
         if (battlecard) {
@@ -147,54 +153,79 @@ export async function POST(req: NextRequest) {
         const verdict = computeSimulationVerdict(input, evaluations);
         const resolvedBattlecard = battlecard;
 
-        // Auto-generate fresh Hold-Out Panel (Cohort B) mirroring Cohort A
+        // Stage 6: Formulate Commitment Plan & Optimizations via Nemotron 3 Ultra
+        emit({
+          stage: 'optimizing_pitch',
+          message: 'NVIDIA Nemotron 3 Ultra formulating contractual commitment roadmap & pricing fixes...',
+          timestamp: Date.now(),
+        });
+
+        let optimizedPitch: OptimizedPitch | null = null;
+        try {
+          optimizedPitch = await optimizeProductPitch(input, verdict, evidence);
+        } catch (optErr) {
+          console.warn('[stream] Optimization fallback error:', optErr);
+        }
+
+        // Stage 7: Auto-generate fresh Hold-Out Panel (Cohort B) testing the improved pitch
+        emit({
+          stage: 'running_holdout',
+          message: 'Testing improved commitment plan against fresh mirrored hold-out cohort (Cohort B)...',
+          timestamp: Date.now(),
+          data: { optimizedPitch: optimizedPitch || undefined },
+        });
+
         let holdOutResult: HoldOutRetestResult | null = null;
         try {
           const holdOutCount = Math.min(10, personas.length);
           const mirrorTarget = personas.slice(0, holdOutCount);
-          const holdOutPersonas = await generateSyntheticPersonas(input, {
-            count: holdOutCount,
-            isHoldOut: true,
-            targetRoles: mirrorTarget.map((p) => p.role),
-            mirrorPersonas: mirrorTarget,
-            excludeNames: new Set(personas.map((p) => p.name.toLowerCase())),
-          });
+          if (optimizedPitch) {
+            holdOutResult = await executeHoldOutRetest(optimizedPitch, verdict, evidence, mirrorTarget);
+          } else {
+            const holdOutPersonas = await generateSyntheticPersonas(input, {
+              count: holdOutCount,
+              isHoldOut: true,
+              targetRoles: mirrorTarget.map((p) => p.role),
+              mirrorPersonas: mirrorTarget,
+              excludeNames: new Set(personas.map((p) => p.name.toLowerCase())),
+            });
 
-          const holdOutEvaluations = await Promise.all(
-            holdOutPersonas.map((p) =>
-              evaluatePersonaReaction(input, p, evidence, {
-                battlecard: battlecard || undefined,
-                temperature: 0.4,
-              })
-            )
-          );
+            const holdOutEvaluations = await Promise.all(
+              holdOutPersonas.map((p) =>
+                evaluatePersonaReaction(input, p, evidence, {
+                  battlecard: battlecard || undefined,
+                  temperature: 0.4,
+                })
+              )
+            );
 
-          const holdOutVerdict = computeSimulationVerdict(input, holdOutEvaluations);
-          holdOutResult = {
-            holdOutPersonas,
-            holdOutEvaluations,
-            holdOutVerdict,
-            initialAcceptanceRate: verdict.acceptanceRate,
-            holdOutAcceptanceRate: holdOutVerdict.acceptanceRate,
-            initialPaidAcceptanceRate: verdict.paidAcceptanceRate,
-            holdOutPaidAcceptanceRate: holdOutVerdict.paidAcceptanceRate,
-            initialMedianPrice: verdict.priceRange.median,
-            holdOutMedianPrice: holdOutVerdict.priceRange.median,
-            acceptanceRateSpread: {
-              min: Math.max(0, Number((holdOutVerdict.acceptanceRate - 0.1).toFixed(2))),
-              median: holdOutVerdict.acceptanceRate,
-              max: Math.min(1, Number((holdOutVerdict.acceptanceRate + 0.1).toFixed(2))),
-            },
-            priceSpread: {
-              min: holdOutVerdict.priceRange.min,
-              median: holdOutVerdict.priceRange.median,
-              max: holdOutVerdict.priceRange.max,
-            },
-            resolvedObjectionsCount: 0,
-            totalInitialObjections: verdict.topObjections.length,
-            isHoldOutVerified: true,
-            deltaSummary: `Hold-out panel (Cohort B, ${holdOutPersonas.length} decision-makers) evaluated with ${Math.round(holdOutVerdict.paidAcceptanceRate * 100)}% commercial adoption and median WTP $${holdOutVerdict.priceRange.median}/${input.billingPeriod}.`,
-          };
+            const holdOutVerdict = computeSimulationVerdict(input, holdOutEvaluations);
+            holdOutResult = {
+              holdOutPersonas,
+              holdOutEvaluations,
+              holdOutVerdict,
+              initialAcceptanceRate: verdict.acceptanceRate,
+              holdOutAcceptanceRate: holdOutVerdict.acceptanceRate,
+              initialPaidAcceptanceRate: verdict.paidAcceptanceRate,
+              holdOutPaidAcceptanceRate: holdOutVerdict.paidAcceptanceRate,
+              initialMedianPrice: verdict.priceRange.median,
+              holdOutMedianPrice: holdOutVerdict.priceRange.median,
+              acceptanceRateSpread: {
+                min: Math.max(0, Number((holdOutVerdict.acceptanceRate - 0.1).toFixed(2))),
+                median: holdOutVerdict.acceptanceRate,
+                max: Math.min(1, Number((holdOutVerdict.acceptanceRate + 0.1).toFixed(2))),
+              },
+              priceSpread: {
+                min: holdOutVerdict.priceRange.min,
+                median: holdOutVerdict.priceRange.median,
+                max: holdOutVerdict.priceRange.max,
+              },
+              resolvedObjectionsCount: 0,
+              totalInitialObjections: verdict.topObjections.length,
+              isHoldOutVerified: true,
+              deltaSummary: `Hold-out panel (Cohort B, ${holdOutPersonas.length} decision-makers) evaluated with ${Math.round(holdOutVerdict.paidAcceptanceRate * 100)}% commercial adoption and median WTP $${holdOutVerdict.priceRange.median}/${input.billingPeriod}.`,
+            };
+          }
         } catch (holdOutErr) {
           console.warn('[stream] Hold-out cohort generation fallback:', holdOutErr);
         }
@@ -211,6 +242,7 @@ export async function POST(req: NextRequest) {
           data: {
             verdict,
             battlecard: resolvedBattlecard || undefined,
+            optimizedPitch: optimizedPitch || undefined,
             holdOutResult: holdOutResult || undefined,
             telemetry: {
               modelFast: fastModel,

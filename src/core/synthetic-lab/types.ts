@@ -39,6 +39,9 @@ export interface GroundedEvidence {
   url: string;
   domain: string;
   relevanceToPitch: string;
+  score?: number;
+  rawContent?: string;
+  tavilyAnswer?: string;
 }
 
 export type PersonaVote = 'adopt' | 'reject' | 'hesitant';
@@ -184,6 +187,7 @@ export interface SimulationRunEvent {
   data?: {
     personas?: SyntheticPersona[];
     evidence?: GroundedEvidence[];
+    marketConsensus?: string;
     evaluation?: PersonaEvaluation;
     verdict?: SimulationVerdict;
     optimizedPitch?: OptimizedPitch;
@@ -219,6 +223,7 @@ export interface CompetitiveBattlecard {
   positioningAdvantage: string;
   opportunitySummary: string;
   generatedAt?: number;
+  tavilyMarketSynthesis?: string;
 }
 
 export interface NebiusSandboxTelemetry {

@@ -4,14 +4,6 @@ import React from 'react';
 import {
   X,
   Cpu,
-  Layers,
-  Zap,
-  Activity,
-  Server,
-  ShieldCheck,
-  ArrowRight,
-  Database,
-  GitBranch,
 } from 'lucide-react';
 
 export interface NebiusArchitectureModalProps {

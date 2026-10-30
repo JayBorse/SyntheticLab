@@ -43,12 +43,11 @@ export const SandboxTerminalModal: React.FC<SandboxTerminalModalProps> = ({
 
   useEffect(() => {
     if (isOpen && blocker) {
-      setVisibleLogs([]);
-      setTelemetry(null);
-      setResolutionSummary('');
-      setIsRunning(true);
-
       const runSandbox = async () => {
+        setVisibleLogs([]);
+        setTelemetry(null);
+        setResolutionSummary('');
+        setIsRunning(true);
         try {
           const res = await fetch('/api/simulate/sandbox-poc', {
             method: 'POST',

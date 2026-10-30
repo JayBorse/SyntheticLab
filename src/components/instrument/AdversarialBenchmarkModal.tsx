@@ -3,15 +3,10 @@
 import React, { useState } from 'react';
 import {
   X,
-  ShieldAlert,
   ShieldCheck,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  AlertTriangle,
-  Terminal,
-  Activity,
-  Layers,
   Filter,
 } from 'lucide-react';
 import benchmarkData from '@/core/synthetic-lab/benchmark-transcripts.json';

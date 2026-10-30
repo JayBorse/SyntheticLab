@@ -74,7 +74,7 @@ export const SIMULATION_PRESETS: SimulationPreset[] = [
         relevanceToPitch: 'Supports the value proposition of managed serverless infrastructure.',
       },
     ],
-    savedRun: devtoolsApiReplay as any,
+    savedRun: devtoolsApiReplay as unknown as SimulationPreset['savedRun'],
   },
   {
     id: 'b2b_saas',

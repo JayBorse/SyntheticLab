@@ -1,7 +1,20 @@
 import { SimulationInput, GroundedEvidence } from './types';
 import { SIMULATION_PRESETS } from './presets';
+import { tavily, TavilyClient } from '@tavily/core';
 
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY || '';
+
+let tavilyClientInstance: TavilyClient | null = null;
+function getTavilyClient(): TavilyClient | null {
+  if (!tavilyClientInstance && TAVILY_API_KEY && TAVILY_API_KEY !== 'placeholder_tavily_key') {
+    try {
+      tavilyClientInstance = tavily({ apiKey: TAVILY_API_KEY });
+    } catch (e) {
+      console.warn('[market-scout] Failed to initialize Tavily client:', e);
+    }
+  }
+  return tavilyClientInstance;
+}
 
 /**
  * Derives the source type strictly from the actual domain and content.
@@ -37,7 +50,7 @@ export function deriveSourceType(domain: string, title: string, content: string)
 }
 
 /**
- * Scouts real-world market and competitor evidence.
+ * Scouts real-world market and competitor evidence using Tavily Advanced Search.
  * STRICT HONESTY RULE: Never leak preset evidence into custom inputs.
  */
 export async function scoutMarketEvidence(input: SimulationInput): Promise<GroundedEvidence[]> {
@@ -51,10 +64,86 @@ export async function scoutMarketEvidence(input: SimulationInput): Promise<Groun
     return matchedPreset.cachedEvidence;
   }
 
-  // 2. Custom input: Execute targeted live Tavily search
+  // 2. Custom input: Execute targeted live Tavily search with advanced depth & answer synthesis
+  const client = getTavilyClient();
+  if (client) {
+    try {
+      const categoryLabel = input.category.replace(/_/g, ' ');
+
+      // Multi-vector research strategy:
+      // Query 1: Competitor pricing, overage fees & tier structure (with advanced answer synthesis)
+      // Query 2: Authentic practitioner complaints on Reddit, Hacker News & review platforms
+      const searchTasks = [
+        client.search(`${input.productName} alternatives ${categoryLabel} pricing plans tiers overage fees`, {
+          searchDepth: 'advanced',
+          includeAnswer: 'advanced',
+          maxResults: 4,
+        }),
+        client.search(`"${input.targetAudience}" tools software frustrations complaints limitations migrated away`, {
+          searchDepth: 'advanced',
+          includeDomains: ['reddit.com', 'news.ycombinator.com', 'g2.com', 'trustradius.com', 'capterra.com'],
+          includeDomainsMode: 'prefer',
+          maxResults: 4,
+        }),
+        client.search(`best "${input.targetAudience}" software reviews pros cons 2026`, {
+          searchDepth: 'advanced',
+          maxResults: 3,
+        }),
+      ];
+
+      const responses = await Promise.allSettled(searchTasks);
+      const allResults: GroundedEvidence[] = [];
+      const seenUrls = new Set<string>();
+
+      // Extract market consensus answer if synthesized
+      let marketConsensusAnswer: string | undefined = undefined;
+      for (const r of responses) {
+        if (r.status === 'fulfilled' && r.value.answer && !marketConsensusAnswer) {
+          marketConsensusAnswer = r.value.answer;
+        }
+      }
+
+      responses.forEach((res, taskIdx) => {
+        if (res.status === 'fulfilled' && Array.isArray(res.value.results)) {
+          res.value.results.forEach((item, itemIdx) => {
+            try {
+              const urlObj = new URL(item.url);
+              const domain = urlObj.hostname.replace(/^www\./, '');
+              const normalizedUrl = item.url.split('?')[0].toLowerCase();
+
+              if (!seenUrls.has(normalizedUrl)) {
+                seenUrls.add(normalizedUrl);
+                allResults.push({
+                  id: `ev_live_${taskIdx}_${itemIdx}`,
+                  sourceType: deriveSourceType(domain, item.title, item.content),
+                  title: item.title,
+                  snippet: item.content.substring(0, 320) + '...',
+                  url: item.url,
+                  domain,
+                  relevanceToPitch: `Live web evidence discovered for ${input.targetAudience}`,
+                  score: item.score,
+                  rawContent: item.rawContent || undefined,
+                  tavilyAnswer: marketConsensusAnswer,
+                });
+              }
+            } catch {
+              // ignore invalid urls
+            }
+          });
+        }
+      });
+
+      if (allResults.length > 0) {
+        return allResults;
+      }
+    } catch (err) {
+      console.warn('[market-scout] Live Tavily advanced search error, attempting direct fetch fallback:', err);
+    }
+  }
+
+  // 3. Direct fetch fallback if SDK call failed or key absent
   if (TAVILY_API_KEY && TAVILY_API_KEY !== 'placeholder_tavily_key') {
     try {
-      // Build search queries specific to the product's ICP, category, and value proposition
       const searchQueries = [
         `"${input.targetAudience}" tools software pricing complaints reviews`,
         `site:reddit.com "${input.targetAudience}" frustrations software`,
@@ -89,7 +178,7 @@ export async function scoutMarketEvidence(input: SimulationInput): Promise<Groun
                   if (!seenUrls.has(item.url)) {
                     seenUrls.add(item.url);
                     allResults.push({
-                      id: `ev_live_${i}_${idx}`,
+                      id: `ev_live_fb_${i}_${idx}`,
                       sourceType: deriveSourceType(domain, item.title, item.content),
                       title: item.title,
                       snippet: item.content.substring(0, 240) + '...',
@@ -105,10 +194,9 @@ export async function scoutMarketEvidence(input: SimulationInput): Promise<Groun
             }
           }
         } catch (searchErr) {
-          console.warn(`Tavily search query "${query}" failed:`, searchErr);
+          console.warn(`Tavily fallback search query "${query}" failed:`, searchErr);
         }
 
-        // If we found 3-5 solid live evidence pieces, stop to conserve rate limits
         if (allResults.length >= 4) break;
       }
 
@@ -120,7 +208,18 @@ export async function scoutMarketEvidence(input: SimulationInput): Promise<Groun
     }
   }
 
-  // 3. If no live evidence is found for this custom niche:
+  // 4. If no live evidence is found for this custom niche:
   // STRICT RULE: Return an empty array. NEVER silently fall back to preset evidence (e.g. Pinecone/Vector DB)!
   return [];
+}
+
+/**
+ * Retrieves grounded market evidence along with Tavily's synthesized market consensus brief.
+ */
+export async function scoutMarketBrief(
+  input: SimulationInput
+): Promise<{ evidence: GroundedEvidence[]; marketConsensus?: string }> {
+  const evidence = await scoutMarketEvidence(input);
+  const marketConsensus = evidence.find((e) => e.tavilyAnswer)?.tavilyAnswer;
+  return { evidence, marketConsensus };
 }

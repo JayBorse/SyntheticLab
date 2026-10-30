@@ -88,10 +88,12 @@ SyntheticLab equips technical buyer personas with **Autonomous Nebius Cloud Sand
 
 ## 🔍 Deep Tavily Integration (Best Use of Tavily Track)
 
-Tavily is not used as a decorative search box. It serves as the **epistemic anchor** of the simulation:
-- **Competitor Pricing Benchmarks**: Discovers hidden caps, overage fees, and seat licensing minimums from competitors (e.g. Pinecone, Vanta, Datadog).
-- **Reddit & Community Friction Mining**: Extracts authentic developer complaints about cloud database latency, alert fatigue, and migration switching costs.
-- **Traceable Attribution**: Every fatal objection raised by a persona links directly to a verifiable URL cited by Tavily.
+Tavily is not used as a decorative search box. It serves as the **epistemic anchor** of the entire simulation arena, utilizing Tavily's official SDK (`@tavily/core`) alongside direct REST API fallbacks:
+- **Tavily AI Deep Search (`searchDepth: 'advanced'`)**: Discovers nuanced pricing pitfalls, hidden overage caps, and contract traps across the live web.
+- **Tavily AI Market Consensus Synthesis (`includeAnswer: 'advanced'`)**: Synthesizes real-time executive summaries of pricing ranges and practitioner sentiment, anchoring the 10-competitor battlefield matrix.
+- **Tavily Deep Extract Engine (`tavily.extract`)**: Uses headless browser extraction with `extractDepth: 'advanced'` and `format: 'markdown'` to parse JavaScript-rendered SPAs and dedicated `/pricing` pages directly from any target URL.
+- **Targeted Domain Mining**: Directs queries to authentic practitioner communities (`includeDomains: ['reddit.com', 'news.ycombinator.com', 'g2.com', 'trustradius.com', 'capterra.com']`) to uncover unvarnished developer grievances and enterprise migration switching costs.
+- **Causal Query Lineage & Attribution**: Every fatal objection raised by a buyer persona links to a verifiable URL, and users can inspect the complete autonomous search trace in the UI.
 
 ---
 

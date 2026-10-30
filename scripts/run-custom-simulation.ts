@@ -8,7 +8,6 @@ import { evaluatePersonaReaction, computeSimulationVerdict } from '../src/core/s
 import { optimizeProductPitch } from '../src/core/synthetic-lab/optimizer';
 import { executeHoldOutRetest } from '../src/core/synthetic-lab/holdout-retest';
 import { generateJsonExport } from '../src/core/synthetic-lab/report-exporter';
-import { NebiusNemotronProvider } from '../src/core/ai/nebius';
 
 async function runCustomSimulation() {
   const startTime = Date.now();

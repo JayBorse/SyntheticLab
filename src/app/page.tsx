@@ -9,7 +9,6 @@ import {
   Users,
   Search,
   CheckCircle2,
-  AlertTriangle,
   TrendingUp,
   Zap,
   Sparkles,
@@ -49,7 +48,6 @@ import {
   Drawer,
   ExportMenu,
   ExportCard,
-  PersonaAvatar,
   BattlecardMatrix,
   NegotiationModal,
   AdversarialBenchmarkModal,
@@ -57,6 +55,10 @@ import {
   SwarmArenaView,
 } from '@/components/instrument';
 import { SimulationExportData } from '@/core/synthetic-lab/report-exporter';
+
+function getTimestamp(): number {
+  return Date.now();
+}
 
 export default function SyntheticLabPage() {
   // Theme State (Dark Graphite default, clean Light mode support)
@@ -383,7 +385,7 @@ export default function SyntheticLabPage() {
     setVerdict(null);
     setBattlecard(null);
 
-    const startTime = Date.now();
+    const startTime = getTimestamp();
     abortControllerRef.current = new AbortController();
 
     try {
@@ -448,6 +450,10 @@ export default function SyntheticLabPage() {
               setVerdict(event.data.verdict);
             }
 
+            if (event.data?.optimizedPitch) {
+              setOptimizedPitch(event.data.optimizedPitch);
+            }
+
             if (event.data?.holdOutResult) {
               setHoldOutResult(event.data.holdOutResult);
             }
@@ -457,12 +463,15 @@ export default function SyntheticLabPage() {
               const dynamicTokens = event.data?.telemetry?.totalTokens;
               setTelemetry((prev) => ({
                 ...prev,
-                latencyMs: Date.now() - startTime,
+                latencyMs: getTimestamp() - startTime,
                 totalTokens: dynamicTokens && dynamicTokens > 0 ? dynamicTokens : (prev.totalTokens || 13540),
                 parallelCalls: event.data?.telemetry?.parallelCalls || 10,
                 modelFast: event.data?.telemetry?.modelFast || prev.modelFast,
                 modelReasoning: event.data?.telemetry?.modelReasoning || prev.modelReasoning,
               }));
+              if (event.data?.optimizedPitch) {
+                setOptimizedPitch(event.data.optimizedPitch);
+              }
               if (event.data?.holdOutResult) {
                 setHoldOutResult(event.data.holdOutResult);
               }
@@ -674,10 +683,12 @@ export default function SyntheticLabPage() {
       label: 'Commitment Plan',
       model: 'Nemotron 550B',
       state:
-        optimizedPitch !== null
+        optimizedPitch !== null || holdOutResult !== null || (status === 'completed' && verdict !== null)
           ? 'done'
-          : retestStatus === 'running' && !optimizedPitch
+          : currentStage === 'optimizing_pitch' || (retestStatus === 'running' && !optimizedPitch)
           ? 'active'
+          : currentStage === 'running_holdout'
+          ? 'done'
           : 'idle',
     },
     {
@@ -687,7 +698,7 @@ export default function SyntheticLabPage() {
       state:
         holdOutResult !== null
           ? 'done'
-          : retestStatus === 'running' && optimizedPitch !== null
+          : currentStage === 'running_holdout' || (retestStatus === 'running' && optimizedPitch !== null)
           ? 'active'
           : 'idle',
     },
@@ -789,7 +800,7 @@ export default function SyntheticLabPage() {
       </header>
 
       {/* 2. MAIN WORKSPACE */}
-      <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 flex flex-col gap-8">
+      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 flex flex-col gap-8">
         {/* Replay Alert Banner (Honesty requirement) */}
         {isReplayActive && (
           <Banner
@@ -1397,9 +1408,9 @@ export default function SyntheticLabPage() {
 
         {/* Active Stage Status Ticker */}
         {status === 'running' && (
-          <div className="px-5 py-3 rounded-full bg-blue-500/10 border border-blue-500/30 text-xs sm:text-sm text-blue-400 flex items-center justify-center gap-2.5 font-medium shadow-lg mx-auto max-w-md animate-in fade-in duration-200">
+          <div className="px-6 py-2.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-xs sm:text-sm text-blue-400 flex items-center justify-center gap-2.5 font-medium shadow-lg mx-auto max-w-3xl w-fit text-center animate-in fade-in duration-200">
             <span className="h-2 w-2 rounded-full bg-blue-400 animate-ping shrink-0" />
-            <span className="truncate">{statusMessage}</span>
+            <span className="break-words leading-relaxed">{statusMessage}</span>
           </div>
         )}
 
@@ -1652,7 +1663,7 @@ export default function SyntheticLabPage() {
 
         {/* 6. BEFORE VS AFTER SECTION: FIX PITCH & RETEST (COHORT 2): Two-Column Symmetric Comparison */}
         {verdict && (
-          <div className="p-6 sm:p-8 rounded-2xl bg-[var(--surface-1)]/80 backdrop-blur-2xl border border-[var(--border-subtle)] space-y-6 shadow-xl">
+          <div id="cohort-retest-section" className="p-6 sm:p-8 rounded-2xl bg-[var(--surface-1)]/80 backdrop-blur-2xl border border-[var(--border-subtle)] space-y-6 shadow-xl">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-5">
               <div>
                 <div className="flex items-center gap-2">
@@ -1825,15 +1836,17 @@ export default function SyntheticLabPage() {
 
         {/* 7. COMPETITIVE INTELLIGENCE BATTLECARD MATRIX (10 Incumbents) */}
         {battlecard && (
-          <BattlecardMatrix
-            battlecard={battlecard}
-            proposedPrice={currentInput.proposedPrice}
-            billingPeriod={currentInput.billingPeriod}
-          />
+          <div id="battlecard-matrix-section">
+            <BattlecardMatrix
+              battlecard={battlecard}
+              proposedPrice={currentInput.proposedPrice}
+              billingPeriod={currentInput.billingPeriod}
+            />
+          </div>
         )}
 
         {/* 8. GROUNDED WEB EVIDENCE (Horizontal Layout Across Full Width) */}
-        <div className="p-6 sm:p-7 rounded-2xl bg-[var(--surface-1)]/80 backdrop-blur-2xl border border-[var(--border-subtle)] space-y-4 shadow-xl">
+        <div id="grounded-web-evidence-section" className="p-6 sm:p-7 rounded-2xl bg-[var(--surface-1)]/80 backdrop-blur-2xl border border-[var(--border-subtle)] space-y-4 shadow-xl">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -1909,7 +1922,7 @@ export default function SyntheticLabPage() {
 
           {/* Blind Replay Benchmark Verification Box */}
           {activePreset?.groundTruthObjections && (
-            <div className="p-4 rounded-xl bg-[var(--surface-2)]/40 border border-blue-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs mt-3">
+            <div id="sanitized-benchmark-box" className="p-4 rounded-xl bg-[var(--surface-2)]/40 border border-blue-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs mt-3">
               <div className="flex items-center gap-2.5">
                 <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
                 <div>
@@ -1938,7 +1951,7 @@ export default function SyntheticLabPage() {
 
       {/* 7. FOOTER */}
       <footer className="border-t border-[var(--border-subtle)] bg-[var(--surface-1)] py-8 text-xs text-[var(--text-muted)]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <div className="space-y-1">
             <p className="text-[var(--text-secondary)] font-medium">
               SyntheticLab • Autonomous Buyer & Churn Simulation Arena

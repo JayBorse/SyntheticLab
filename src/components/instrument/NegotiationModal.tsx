@@ -4,12 +4,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   Send,
-  Sparkles,
   ShieldAlert,
   Volume2,
   CheckCircle2,
   AlertTriangle,
-  RotateCcw,
   Zap,
   ListChecks,
   Calculator,
@@ -33,7 +31,14 @@ import { calculateEconomicFormula } from '@/core/synthetic-lab/economic-engine';
 import { isTechnicalBlocker } from '@/core/nebius/sandbox-runner';
 import { SandboxTerminalModal } from './SandboxTerminalModal';
 import { Button } from './Button';
-import { Chip } from './Chip';
+
+function createMessageId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function getCurrentTimestamp(): number {
+  return Date.now();
+}
 
 export interface NegotiationModalProps {
   isOpen: boolean;
@@ -64,7 +69,7 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
   const [netValueDelta, setNetValueDelta] = useState<number | null>(null);
   const [netValueFormula, setNetValueFormula] = useState<NetValueFormula | null>(null);
   const [blockerChecklist, setBlockerChecklist] = useState<BlockerChecklistItem[]>([]);
-  const [isChecklistExpanded, setIsChecklistExpanded] = useState(true);
+  const [isChecklistExpanded, setIsChecklistExpanded] = useState(false);
   const [pushedBack, setPushedBack] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [isSandboxModalOpen, setIsSandboxModalOpen] = useState(false);
@@ -94,10 +99,10 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
     setBlockerChecklist(updatedChecklist);
 
     const founderProofMsg: NegotiationMessage = {
-      id: `msg_founder_${Date.now()}`,
+      id: createMessageId('msg_founder'),
       role: 'founder',
       content: `Dispatched technical proof-of-concept to Nebius Cloud Sandbox [${telemetry.sandboxId}]. MicroVM executed: p99 latency verified at ${telemetry.p99LatencyMs}ms under ${telemetry.throughputRps.toLocaleString()} ops/sec with zero memory leaks. Exit code 0 verified.`,
-      timestamp: Date.now(),
+      timestamp: getCurrentTimestamp(),
     };
 
     const remainingUnresolved = updatedChecklist.filter((b) => !b.resolved).length;
@@ -118,10 +123,10 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
     }
 
     const buyerMsg: NegotiationMessage = {
-      id: `msg_buyer_${Date.now() + 1}`,
+      id: createMessageId('msg_buyer'),
       role: 'buyer',
       content: buyerReplyText,
-      timestamp: Date.now() + 1,
+      timestamp: getCurrentTimestamp() + 1,
       voteAfterMessage: newVote,
       revisedPrice: currentPrice,
       blockerChecklist: updatedChecklist,
@@ -144,7 +149,9 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
 
   // Initialize negotiation with context-aware opening message based on buyer's actual vote
   useEffect(() => {
-    if (isOpen && persona && evaluation) {
+    if (!isOpen || !persona || !evaluation) return;
+
+    const timer = setTimeout(() => {
       setCurrentVote(evaluation.vote);
       setCurrentPrice(evaluation.acceptablePrice);
       setVoteFlipped(false);
@@ -198,16 +205,18 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
 
       setMessages([
         {
-          id: `msg_init_${Date.now()}`,
+          id: createMessageId('msg_init'),
           role: 'buyer',
           content: openingContent,
-          timestamp: Date.now(),
+          timestamp: getCurrentTimestamp(),
           voteAfterMessage: evaluation.vote,
           revisedPrice: evaluation.acceptablePrice,
         },
       ]);
-      setTimeout(() => inputRef.current?.focus(), 150);
-    }
+      inputRef.current?.focus();
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [isOpen, persona, evaluation, input]);
 
   // Scroll to bottom on new messages
@@ -236,6 +245,9 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
   const totalBlockers = blockerChecklist.length;
   const resolvedBlockers = blockerChecklist.filter((b) => b.resolved).length;
   const allCleared = totalBlockers > 0 && resolvedBlockers === totalBlockers;
+  const technicalBlocker = blockerChecklist.find(
+    (b) => !b.resolved && isTechnicalBlocker(b.text, persona.role)
+  );
 
   const quickConcessions = isAdopt
     ? [
@@ -256,10 +268,10 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
     if (!text || isSubmitting) return;
 
     const founderMsg: NegotiationMessage = {
-      id: `msg_founder_${Date.now()}`,
+      id: createMessageId('msg_founder'),
       role: 'founder',
       content: text,
-      timestamp: Date.now(),
+      timestamp: getCurrentTimestamp(),
     };
 
     const updatedHistory = [...messages, founderMsg];
@@ -293,10 +305,10 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
       const data = await response.json();
 
       const buyerMsg: NegotiationMessage = {
-        id: `msg_buyer_${Date.now()}`,
+        id: createMessageId('msg_buyer'),
         role: 'buyer',
         content: data.buyerReply,
-        timestamp: Date.now(),
+        timestamp: getCurrentTimestamp(),
         voteAfterMessage: data.updatedVote,
         revisedPrice: data.revisedPrice,
         rationale: data.rationale,
@@ -400,10 +412,10 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
           fallbackReply = `You can forward the technical specs, BAA, or SOC-2 documentation to our procurement review team. Once our engineering and compliance teams review it against our ${persona.primaryConstraint.toLowerCase()} requirements, we can take the next step.`;
         }
         const buyerMsg: NegotiationMessage = {
-          id: `msg_buyer_fb_${Date.now()}`,
+          id: createMessageId('msg_buyer_fb'),
           role: 'buyer',
           content: fallbackReply,
-          timestamp: Date.now(),
+          timestamp: getCurrentTimestamp(),
           voteAfterMessage: currentVote,
           revisedPrice: currentPrice,
           concessionQuality: 'fluff',
@@ -420,10 +432,10 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
           : '';
         const fallbackReply = `That concession directly resolves all our remaining procurement blockers.${competitorMention} I am ready to approve this at $${newPrice}/${input.billingPeriod}.`;
         const buyerMsg: NegotiationMessage = {
-          id: `msg_buyer_fb_${Date.now()}`,
+          id: createMessageId('msg_buyer_fb'),
           role: 'buyer',
           content: fallbackReply,
-          timestamp: Date.now(),
+          timestamp: getCurrentTimestamp(),
           voteAfterMessage: 'adopt',
           revisedPrice: newPrice,
           concessionQuality: 'concrete_resolution',
@@ -450,10 +462,10 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
         const remaining = updatedChecklist.filter((b) => !b.resolved).map((b) => b.text).join('; ');
         const fallbackReply = `That concession addresses part of our concerns, but we still have an active blocker: "${remaining}". What can you offer on that?`;
         const buyerMsg: NegotiationMessage = {
-          id: `msg_buyer_fb_${Date.now()}`,
+          id: createMessageId('msg_buyer_fb'),
           role: 'buyer',
           content: fallbackReply,
-          timestamp: Date.now(),
+          timestamp: getCurrentTimestamp(),
           voteAfterMessage: 'hesitant',
           revisedPrice: currentPrice,
           concessionQuality: 'partial',
@@ -562,263 +574,176 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
           </button>
         </div>
 
-        {/* Live Status Bar */}
-        <div className="px-5 py-2.5 bg-[var(--surface-subtle)] border-b border-[var(--border-subtle)] flex items-center justify-between text-xs flex-wrap gap-2">
-          <div className="flex items-center gap-2 text-[var(--text-muted)]">
-            <Zap className="h-3.5 w-3.5 text-blue-400" />
-            <span className="hidden sm:inline">NVIDIA Nemotron Sparring</span>
+        {/* Sleek Minimal Executive Context Bar */}
+        <div className="px-4 sm:px-5 py-2.5 bg-[var(--surface-subtle)] border-b border-[var(--border-subtle)] flex items-center justify-between text-xs gap-3">
+          {/* Left: Blocker pill / status / sandbox verify */}
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            {totalBlockers > 0 ? (
+              <button
+                type="button"
+                onClick={() => setIsChecklistExpanded(!isChecklistExpanded)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all cursor-pointer active:scale-95 ${
+                  allCleared
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                    : currentVote === 'reject'
+                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'
+                    : 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
+                }`}
+                title="Click to toggle blocker details and ROI breakdown"
+              >
+                <ListChecks className="h-3 w-3" />
+                <span>
+                  {allCleared
+                    ? '✓ All Blockers Cleared'
+                    : `${totalBlockers - resolvedBlockers} of ${totalBlockers} Blocker${totalBlockers > 1 ? 's' : ''}`}
+                </span>
+                {isChecklistExpanded ? (
+                  <ChevronUp className="h-3 w-3 opacity-60" />
+                ) : (
+                  <ChevronDown className="h-3 w-3 opacity-60" />
+                )}
+              </button>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] font-mono">
+                <Zap className="h-3 w-3 text-blue-400" />
+                <span>Nemotron Sparring</span>
+              </span>
+            )}
+
+            {/* Quick Sandbox Verify shortcut if an unresolved technical blocker exists */}
+            {technicalBlocker && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedSandboxBlocker(technicalBlocker);
+                  setIsSandboxModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-[11px] font-mono transition-all cursor-pointer active:scale-95 shadow-xs"
+                title="Spin up Nebius MicroVM sandbox to benchmark and verify this claim"
+              >
+                <Terminal className="w-3 h-3 text-purple-400" />
+                <span>Verify in Sandbox</span>
+              </button>
+            )}
+
+            {/* Pushed back fluff alert */}
             {pushedBack && (
-              <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 font-medium animate-pulse">
-                <ShieldAlert className="h-3 w-3" /> Fluff Rejected
-              </span>
-            )}
-            {!pushedBack && (voteFlipped || concessionAudit === 'concrete_resolution') && (
-              <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-medium">
-                <CheckCircle2 className="h-3 w-3" /> Objection Resolved
-              </span>
-            )}
-            {!pushedBack && concessionAudit === 'partial' && (
-              <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30 font-medium">
-                <AlertTriangle className="h-3 w-3" /> Partial Concession
+              <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 font-medium animate-pulse">
+                <ShieldAlert className="h-3 w-3" /> Fluff Pushback
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {netValueDelta !== null && (
-              <span className={`text-[11px] px-2 py-0.5 rounded-md border font-semibold font-mono ${
-                netValueDelta > 0
-                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                  : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
-              }`}>
-                Persona Est: {netValueDelta > 0 ? `+$${netValueDelta}/mo` : `-$${Math.abs(netValueDelta)}/mo`} Net Value
+
+          {/* Right: Net Value ROI & Buyer Target Price */}
+          <div className="flex items-center gap-3 shrink-0">
+            {netValueFormula && (
+              <span
+                className={`hidden sm:inline-flex items-center gap-1 text-[11px] font-mono font-medium ${
+                  netValueFormula.netGain > 0 ? 'text-emerald-400' : 'text-rose-400'
+                }`}
+                title={`Calculated Net Value: Problem Cost $${netValueFormula.problemCost}/mo - Price $${netValueFormula.price}/mo`}
+              >
+                {netValueFormula.netGain > 0 ? '+' : ''}${netValueFormula.netGain}/mo ROI
               </span>
             )}
-            <span className="text-[var(--text-muted)]">
-              {currentVote === 'adopt' ? 'Agreed Contract:' : currentVote === 'hesitant' ? 'Buyer WTP:' : 'Buyer Max:'}
-            </span>
-            <span className={`font-bold font-mono text-sm ${
-              currentVote === 'adopt' ? 'text-emerald-400' : currentVote === 'hesitant' ? 'text-blue-400' : 'text-rose-400'
-            }`}>
-              ${currentPrice}/{evaluation.acceptablePeriod}
-            </span>
+
+            <div className="flex items-center gap-1.5 pl-2 border-l border-[var(--border-subtle)] text-xs">
+              <span className="text-[11px] text-[var(--text-muted)]">
+                {currentVote === 'adopt' ? 'Agreed:' : 'Buyer Max:'}
+              </span>
+              <span
+                className={`font-bold font-mono text-xs sm:text-sm ${
+                  currentVote === 'adopt'
+                    ? 'text-emerald-400'
+                    : currentVote === 'hesitant'
+                    ? 'text-blue-400'
+                    : 'text-rose-400'
+                }`}
+              >
+                ${currentPrice}/{evaluation.acceptablePeriod}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Live Tavily Competitive Benchmark Banner */}
-        {battlecard && battlecard.competitors && battlecard.competitors.length > 0 && (
-          <div className="px-5 py-1.5 bg-black/40 border-b border-[var(--border-subtle)] flex items-center justify-between text-[11px] text-[var(--text-muted)] flex-wrap gap-2">
-            <span className="flex items-center gap-1.5 truncate">
-              <span className="text-purple-400 font-semibold">Tavily Market Baseline:</span>
-              <span>
-                Benchmarking vs <strong className="text-[var(--text-secondary)]">{battlecard.competitors[0].name}</strong> ({battlecard.competitors[0].pricingModel})
-              </span>
-            </span>
-            <span className="text-zinc-400 text-[10px] hidden sm:inline truncate max-w-[260px]">
-              Trap: {battlecard.competitors[0].hiddenTrapOrFriction}
-            </span>
-          </div>
-        )}
-
-        {/* Procurement Blocker Checklist & Commercial ROI Engine */}
-        {blockerChecklist && blockerChecklist.length > 0 && (
-          <div className="border-b border-[var(--border-subtle)] bg-[var(--surface-2)]/90 backdrop-blur-sm transition-all">
-            {/* Header / Summary Bar */}
-            <div
-              onClick={() => setIsChecklistExpanded(!isChecklistExpanded)}
-              className="px-5 py-2 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-colors select-none"
-            >
-              <div className="flex items-center gap-2.5">
-                <ListChecks className="h-4 w-4 text-purple-400" />
-                <span className="text-xs font-semibold text-[var(--text-primary)]">
-                  Procurement Blocker Checklist
-                </span>
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold border transition-colors ${
-                    currentVote === 'adopt' && allCleared
-                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-sm shadow-emerald-500/20'
-                      : currentVote === 'reject'
-                      ? 'bg-rose-500/20 text-rose-400 border-rose-500/40'
-                      : resolvedBlockers > 0
-                      ? 'bg-blue-500/20 text-blue-400 border-blue-500/40'
-                      : 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+        {/* Collapsible Due Diligence & Economic Drawer */}
+        {isChecklistExpanded && blockerChecklist.length > 0 && (
+          <div className="px-4 sm:px-5 py-3 bg-[var(--surface-2)]/95 border-b border-[var(--border-subtle)] space-y-2.5 text-xs animate-in fade-in slide-in-from-top-1 duration-150">
+            {/* Items List */}
+            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+              {blockerChecklist.map((item) => (
+                <div
+                  key={item.index}
+                  className={`flex items-start gap-2 p-2 rounded-lg text-xs transition-colors ${
+                    item.resolved
+                      ? 'bg-emerald-500/[0.06] border border-emerald-500/20 text-emerald-200'
+                      : 'bg-black/20 border border-white/5 text-[var(--text-secondary)]'
                   }`}
                 >
-                  {currentVote === 'reject'
-                    ? `Offer Rejected (${resolvedBlockers}/${totalBlockers} Resolved)`
-                    : currentVote === 'adopt' && allCleared
-                    ? `${totalBlockers}/${totalBlockers} Resolved`
-                    : `${resolvedBlockers}/${totalBlockers} Resolved`}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3">
-                {netValueFormula && (
-                  <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-mono">
-                    <span className="text-[var(--text-muted)]">Net Value:</span>
-                    <span
-                      className={`font-semibold ${
-                        netValueFormula.netGain > 0 ? 'text-emerald-400' : 'text-rose-400'
-                      }`}
-                    >
-                      {netValueFormula.netGain > 0 ? '+' : ''}${netValueFormula.netGain}/mo ({netValueFormula.roiMultiple}x ROI)
-                    </span>
-                  </div>
-                )}
-                <button
-                  type="button"
-                  className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-1"
-                  aria-label={isChecklistExpanded ? 'Collapse checklist' : 'Expand checklist'}
-                >
-                  {isChecklistExpanded ? (
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  ) : (
-                    <ChevronUp className="h-3.5 w-3.5" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Expanded Checklist details */}
-            {isChecklistExpanded && (
-              <div className="px-5 pb-3 pt-1 space-y-2 border-t border-white/[0.04]">
-                {/* Progress Bar */}
-                <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-500 rounded-full ${
-                      allCleared
-                        ? 'bg-emerald-500'
-                        : 'bg-gradient-to-r from-blue-500 to-purple-500'
-                    }`}
-                    style={{ width: `${Math.round((resolvedBlockers / totalBlockers) * 100)}%` }}
-                  />
-                </div>
-
-                {/* Items List */}
-                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                  {blockerChecklist.map((item) => (
-                    <div
-                      key={item.index}
-                      className={`flex items-start gap-2 p-1.5 rounded-lg text-[11px] transition-colors ${
-                        item.resolved
-                          ? 'bg-emerald-500/[0.07] border border-emerald-500/20 text-emerald-200'
-                          : 'bg-black/20 border border-white/5 text-[var(--text-secondary)]'
-                      }`}
-                    >
-                      <div className="mt-0.5 shrink-0">
-                        {item.resolved ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                        ) : (
-                          <Circle className="h-3.5 w-3.5 text-amber-400/80" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span
-                            className={
-                              item.resolved
-                                ? 'line-through text-zinc-400 decoration-emerald-500/50'
-                                : 'text-[var(--text-primary)] font-medium'
-                            }
-                          >
-                            {item.text}
-                          </span>
-                          {!item.resolved && isTechnicalBlocker(item.text, persona.role) && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedSandboxBlocker(item);
-                                setIsSandboxModalOpen(true);
-                              }}
-                              className="inline-flex items-center gap-1 text-[9px] font-mono px-2 py-0.5 rounded bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 transition-colors shadow-xs cursor-pointer ml-1"
-                              title="Spin up Nebius MicroVM sandbox to benchmark and verify this claim"
-                            >
-                              <Terminal className="w-3 h-3 text-purple-400" />
-                              <span>Verify in Nebius Sandbox</span>
-                            </button>
-                          )}
-                          {item.resolved && item.sandboxVerified && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono border border-purple-500/30 flex items-center gap-1">
-                              <Terminal className="w-2.5 h-2.5 text-purple-400" />
-                              Nebius MicroVM Verified
-                            </span>
-                          )}
-                          {item.resolved && item.resolvedVia && (
-                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono border border-emerald-500/30 truncate max-w-[260px]">
-                              Cleared via: {item.resolvedVia}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Commercial Math & Decision Rule */}
-                {netValueFormula && (
-                  <div className="p-2.5 rounded-lg bg-black/40 border border-white/5 space-y-2 text-[10px]">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <Calculator className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                        <span className="text-[var(--text-secondary)] font-semibold">Persona's Value Estimate</span>
-                        {netValueFormula.valueTypeLabel && (
-                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
-                            {netValueFormula.valueTypeLabel}
-                          </span>
-                        )}
-                      </div>
-                      <div className="font-mono">
-                        <span className="text-[var(--text-muted)]">Net Realized Value: </span>
-                        <span
-                          className={`font-bold ${
-                            netValueFormula.netGain > 0 ? 'text-emerald-400' : 'text-rose-400'
-                          }`}
-                        >
-                          {netValueFormula.netGain > 0 ? '+' : ''}${netValueFormula.netGain}/mo
-                        </span>
-                        {netValueFormula.roiMultiple && netValueFormula.roiMultiple > 0 && (
-                          <span className="text-[var(--text-muted)] ml-1">({netValueFormula.roiMultiple}x ROI)</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Derivation string showing working */}
-                    {netValueFormula.derivation ? (
-                      <div className="p-2 rounded bg-black/60 border border-white/5 font-mono text-[10px] text-zinc-300 leading-relaxed overflow-x-auto">
-                        <span className="text-purple-400 font-semibold mr-1.5">Working:</span>
-                        {netValueFormula.derivation}
-                      </div>
+                  <div className="mt-0.5 shrink-0">
+                    {item.resolved ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
                     ) : (
-                      <div className="flex items-center gap-2 font-mono text-[10px] text-zinc-300">
-                        <span>Problem Cost ${netValueFormula.problemCost}/mo</span>
-                        <span className="text-[var(--text-muted)]">−</span>
-                        <span>Price ${netValueFormula.price}/mo</span>
-                        <span className="text-[var(--text-muted)]">=</span>
-                        <span className={netValueFormula.netGain > 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                          ${netValueFormula.netGain}/mo
-                        </span>
-                      </div>
+                      <Circle className="h-3.5 w-3.5 text-amber-400/80" />
                     )}
-
-                    <div className="text-[10px] font-mono flex items-center justify-between pt-1 border-t border-white/[0.04] flex-wrap gap-2">
-                      <span className="text-[var(--text-muted)]">Flip Condition:</span>
-                      {allCleared && netValueFormula.netGain > 0 ? (
-                        <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" /> All Blockers Cleared + Positive Realized ROI → FLIPPED
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span
+                        className={
+                          item.resolved
+                            ? 'line-through text-zinc-400 decoration-emerald-500/50'
+                            : 'text-[var(--text-primary)] font-medium'
+                        }
+                      >
+                        {item.text}
+                      </span>
+                      {!item.resolved && isTechnicalBlocker(item.text, persona.role) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedSandboxBlocker(item);
+                            setIsSandboxModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 transition-colors cursor-pointer"
+                        >
+                          <Terminal className="w-3 h-3 text-purple-400" />
+                          <span>Verify in Nebius Sandbox</span>
+                        </button>
+                      )}
+                      {item.resolved && item.sandboxVerified && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono border border-purple-500/30 flex items-center gap-1">
+                          <Terminal className="w-2.5 h-2.5 text-purple-400" />
+                          Nebius MicroVM Verified
                         </span>
-                      ) : !allCleared ? (
-                        <span className="text-amber-400 font-medium">
-                          {totalBlockers - resolvedBlockers} blocker(s) unresolved (Vote cannot flip)
-                        </span>
-                      ) : (
-                        <span className="text-rose-400 font-medium">
-                          Price exceeds realized benefit (Net Gain ≤ 0)
+                      )}
+                      {item.resolved && item.resolvedVia && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono border border-emerald-500/30 truncate max-w-[280px]">
+                          Cleared: {item.resolvedVia}
                         </span>
                       )}
                     </div>
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              ))}
+            </div>
+
+            {/* Subtle Economic Formula Breakdown & Market Baseline */}
+            <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-[var(--text-muted)] flex-wrap gap-2">
+              {netValueFormula && (
+                <div className="flex items-center gap-2 font-mono">
+                  <Calculator className="h-3 w-3 text-blue-400" />
+                  <span>
+                    Problem: ${netValueFormula.problemCost}/mo → Realized Value: ${netValueFormula.realizedValue}/mo → Net: {netValueFormula.netGain > 0 ? '+' : ''}${netValueFormula.netGain}/mo
+                  </span>
+                </div>
+              )}
+              {battlecard?.competitors?.[0] && (
+                <span className="text-[10px] text-purple-300/80">
+                  Benchmarking vs {battlecard.competitors[0].name} ({battlecard.competitors[0].pricingModel})
+                </span>
+              )}
+            </div>
           </div>
         )}
 
@@ -831,70 +756,57 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
                 key={m.id}
                 className={`flex flex-col ${isBuyer ? 'items-start' : 'items-end'} space-y-1`}
               >
-                <span className="text-[10px] font-mono text-[var(--text-muted)] px-1">
-                  {isBuyer ? persona.name : 'You (Founder)'}
-                </span>
+                <div className="flex items-center gap-2 px-1 text-[10px] font-mono text-[var(--text-muted)]">
+                  <span>{isBuyer ? persona.name : 'You (Founder)'}</span>
+                  {isBuyer && (
+                    <button
+                      type="button"
+                      onClick={() => speakText(m.id, m.content)}
+                      className="inline-flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 transition-colors cursor-pointer ml-1"
+                      title="Listen to audio voice"
+                    >
+                      <Volume2 className={`h-3 w-3 ${speakingMsgId === m.id ? 'animate-pulse text-emerald-400' : ''}`} />
+                      <span>{speakingMsgId === m.id ? 'Playing...' : 'Listen'}</span>
+                    </button>
+                  )}
+                </div>
 
                 <div
                   className={`max-w-[85%] sm:max-w-[75%] p-3.5 rounded-2xl relative text-xs leading-relaxed ${
                     isBuyer
                       ? 'bg-[var(--surface-2)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-tl-sm'
-                      : 'bg-blue-600 text-white rounded-tr-sm shadow-md'
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-sm shadow-md shadow-blue-500/10'
                   }`}
                 >
                   <p>{m.content}</p>
-
-                  {/* Audio speak icon for buyer messages */}
-                  {isBuyer && (
-                    <div className="mt-2 pt-2 border-t border-[var(--border-subtle)]/60 flex items-center justify-between">
-                      <button
-                        onClick={() => speakText(m.id, m.content)}
-                        className="inline-flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 font-medium cursor-pointer"
-                      >
-                        <Volume2 className={`h-3 w-3 ${speakingMsgId === m.id ? 'animate-bounce text-emerald-400' : ''}`} />
-                        <span>{speakingMsgId === m.id ? 'Playing Voice...' : 'Listen to Voice'}</span>
-                      </button>
-
-                      {m.voteAfterMessage && (
-                        <span className="text-[10px] font-mono text-[var(--text-muted)]">
-                          Vote: {m.voteAfterMessage.toUpperCase()}{' '}
-                          {m.voteAfterMessage === 'adopt'
-                            ? `($${m.revisedPrice})`
-                            : m.voteAfterMessage === 'hesitant'
-                            ? `(WTP: $${m.revisedPrice})`
-                            : `(Rejected • WTP: $${m.revisedPrice})`}
-                        </span>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             );
           })}
 
           {isSubmitting && (
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-[var(--surface-2)]/60 border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] w-fit">
-              <span className="h-2 w-2 rounded-full bg-blue-400 animate-ping" />
-              <span>{persona.name} is evaluating your counter-offer...</span>
+            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[var(--surface-2)]/80 border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] w-fit animate-pulse">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-ping" />
+              <span>{persona.name} is deliberating...</span>
             </div>
           )}
 
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Quick Concessions Pills */}
-        <div className="p-3 bg-[var(--surface-2)]/60 border-t border-[var(--border-subtle)] overflow-x-auto">
-          <span className="text-[10px] uppercase font-mono text-[var(--text-muted)] block mb-1.5 font-semibold">
-            Suggested Concessions & Counter-Offers:
+        {/* Quick Concessions Chips */}
+        <div className="px-4 py-2 bg-[var(--surface-2)]/40 border-t border-[var(--border-subtle)] flex items-center gap-2 overflow-x-auto">
+          <span className="text-[10px] uppercase font-mono text-[var(--text-muted)] shrink-0 font-medium">
+            Quick Offers:
           </span>
-          <div className="flex items-center gap-1.5 whitespace-nowrap overflow-x-auto pb-1">
+          <div className="flex items-center gap-1.5 whitespace-nowrap overflow-x-auto py-0.5">
             {quickConcessions.map((qc, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => handleSendMessage(qc)}
                 disabled={isSubmitting}
-                className="px-2.5 py-1 rounded-lg bg-[var(--surface-1)] border border-[var(--border-subtle)] hover:border-blue-500/40 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
+                className="px-2.5 py-1 rounded-full bg-[var(--surface-1)] hover:bg-[var(--surface-2)] border border-[var(--border-subtle)] hover:border-blue-500/40 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50 active:scale-95 shadow-xs"
               >
                 + {qc}
               </button>
@@ -908,26 +820,29 @@ export const NegotiationModal: React.FC<NegotiationModalProps> = ({
             e.preventDefault();
             handleSendMessage();
           }}
-          className="p-3 sm:p-4 bg-[var(--surface-2)] border-t border-[var(--border-subtle)] flex items-center gap-2"
+          className="p-3 sm:p-4 bg-[var(--surface-2)]/80 border-t border-[var(--border-subtle)]"
         >
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder={`Propose a term, pricing cap, or guarantee to ${persona.name}...`}
-            disabled={isSubmitting}
-            className="flex-1 px-4 py-2.5 rounded-xl bg-[var(--surface-1)] border border-[var(--border-medium)] text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-blue-500 transition-colors"
-          />
-          <Button
-            type="submit"
-            variant="primary"
-            size="md"
-            disabled={!inputText.trim() || isSubmitting}
-            leftIcon={<Send className="h-3.5 w-3.5" />}
-          >
-            Counter-Offer
-          </Button>
+          <div className="flex items-center gap-2 bg-[var(--surface-1)] border border-[var(--border-medium)] rounded-xl px-3 py-1.5 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder={`Propose a term, pricing cap, or guarantee to ${persona.name}...`}
+              disabled={isSubmitting}
+              className="flex-1 bg-transparent border-0 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none py-1.5"
+            />
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              disabled={!inputText.trim() || isSubmitting}
+              leftIcon={<Send className="h-3 w-3" />}
+              className="rounded-lg shrink-0 px-3.5 py-1.5 text-xs shadow-xs"
+            >
+              Counter-Offer
+            </Button>
+          </div>
         </form>
       </div>
 

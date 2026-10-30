@@ -5,23 +5,14 @@ import {
   Compass,
   Users,
   Flame,
-  Sparkles,
   AlertTriangle,
   CheckCircle2,
   RotateCcw,
-  Zap,
   Filter,
-  DollarSign,
-  TrendingUp,
-  SlidersHorizontal,
-  ExternalLink,
-  Eye,
-  Radio,
 } from 'lucide-react';
 import {
   PersonaEvaluation,
   SyntheticPersona,
-  PersonaVote,
 } from '@/core/synthetic-lab/types';
 import { PersonaAvatar } from './PersonaAvatar';
 
@@ -42,7 +33,6 @@ export const SwarmArenaView: React.FC<SwarmArenaViewProps> = ({
   proposedPrice,
   billingPeriod,
   onSelectEvaluation,
-  onOpenSparring,
   activeCohortView,
   isHoldOutVerified,
 }) => {
@@ -270,45 +260,48 @@ export const SwarmArenaView: React.FC<SwarmArenaViewProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* 1. APPLE TRANSLUCENT SEGMENTED CONTROL BAR */}
-      <div className="p-2.5 sm:p-3 rounded-2xl bg-[var(--surface-1)]/70 backdrop-blur-3xl border border-white/[0.08] shadow-lg flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        {/* Left: Apple Segmented Pill Switcher */}
-        <div className="inline-flex p-1 rounded-full bg-black/40 border border-white/10 backdrop-blur-xl shrink-0 self-start sm:self-auto shadow-inner">
-          <button
-            type="button"
-            onClick={() => setViewMode('radar')}
-            className={`px-4 py-2 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer ${
-              viewMode === 'radar'
-                ? 'bg-white text-black shadow-md font-semibold'
-                : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Compass className="h-3.5 w-3.5" />
-            <span>Swarm Constellation</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${viewMode === 'radar' ? 'bg-black/10 text-black' : 'bg-white/10 text-zinc-400'}`}>
-              Map
-            </span>
-          </button>
+      <div className="p-2.5 sm:p-3 rounded-2xl bg-[var(--surface-1)]/70 backdrop-blur-3xl border border-white/[0.08] shadow-lg flex flex-wrap items-center justify-between gap-3 overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          {/* Left: Apple Segmented Pill Switcher */}
+          <div className="inline-flex p-1 rounded-full bg-black/40 border border-white/10 backdrop-blur-xl shrink-0 shadow-inner">
+            <button
+              type="button"
+              onClick={() => setViewMode('radar')}
+              className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-1.5 sm:gap-2 cursor-pointer ${
+                viewMode === 'radar'
+                  ? 'bg-white text-black shadow-md font-semibold'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Compass className="h-3.5 w-3.5" />
+              <span>Constellation Map</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setViewMode('boardroom')}
-            className={`px-4 py-2 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer ${
-              viewMode === 'boardroom'
-                ? 'bg-white text-black shadow-md font-semibold'
-                : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Users className="h-3.5 w-3.5" />
-            <span>Executive Boardroom</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${viewMode === 'boardroom' ? 'bg-black/10 text-black' : 'bg-white/10 text-zinc-400'}`}>
-              Deliberation
+            <button
+              type="button"
+              onClick={() => setViewMode('boardroom')}
+              className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-1.5 sm:gap-2 cursor-pointer ${
+                viewMode === 'boardroom'
+                  ? 'bg-white text-black shadow-md font-semibold'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Users className="h-3.5 w-3.5" />
+              <span>Executive Boardroom</span>
+            </button>
+          </div>
+
+          {activeCohortView === 'cohortB' && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-mono font-medium bg-purple-500/10 text-purple-400 border border-purple-500/25 whitespace-nowrap shrink-0 shadow-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse" />
+              Cohort B (Hold-Out){isHoldOutVerified ? ' • Verified' : ''}
             </span>
-          </button>
+          )}
         </div>
 
         {/* Right: Apple Minimalist Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
-          <span className="text-[11px] text-zinc-400 font-medium flex items-center gap-1 shrink-0 mr-1 pl-1">
+        <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 sm:pb-0 text-xs min-w-0 pr-1">
+          <span className="text-[11px] text-zinc-400 font-medium flex items-center gap-1 shrink-0 mr-1 pl-1 whitespace-nowrap">
             <Filter className="h-3 w-3" />
             Filter:
           </span>
@@ -316,7 +309,7 @@ export const SwarmArenaView: React.FC<SwarmArenaViewProps> = ({
           <button
             type="button"
             onClick={() => setFilterMode('all')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all shrink-0 cursor-pointer ${
+            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium transition-all shrink-0 cursor-pointer whitespace-nowrap ${
               filterMode === 'all'
                 ? 'bg-white text-black font-semibold shadow-sm'
                 : 'bg-white/[0.04] text-zinc-400 hover:text-white border border-white/[0.06]'
@@ -328,7 +321,7 @@ export const SwarmArenaView: React.FC<SwarmArenaViewProps> = ({
           <button
             type="button"
             onClick={() => setFilterMode('adopt')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               filterMode === 'adopt'
                 ? 'bg-emerald-500 text-black font-semibold shadow-sm'
                 : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20'
@@ -341,7 +334,7 @@ export const SwarmArenaView: React.FC<SwarmArenaViewProps> = ({
           <button
             type="button"
             onClick={() => setFilterMode('hesitant')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               filterMode === 'hesitant'
                 ? 'bg-amber-500 text-black font-semibold shadow-sm'
                 : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20'
@@ -354,7 +347,7 @@ export const SwarmArenaView: React.FC<SwarmArenaViewProps> = ({
           <button
             type="button"
             onClick={() => setFilterMode('reject')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               filterMode === 'reject'
                 ? 'bg-rose-500 text-white font-semibold shadow-sm'
                 : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20'
@@ -362,6 +355,19 @@ export const SwarmArenaView: React.FC<SwarmArenaViewProps> = ({
           >
             <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
             Rejections ({rejectCount})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFilterMode('in_market')}
+            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              filterMode === 'in_market'
+                ? 'bg-blue-500 text-white font-semibold shadow-sm'
+                : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20'
+            }`}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+            In-Market ({inMarketCount})
           </button>
         </div>
       </div>

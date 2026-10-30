@@ -3,12 +3,10 @@ import {
   SyntheticPersona,
   PersonaEvaluation,
   NegotiationMessage,
-  NegotiationSession,
   PersonaVote,
   CompetitiveBattlecard,
   BlockerChecklistItem,
   NetValueFormula,
-  ValueBenefitType,
 } from './types';
 import { nebiusNemotron } from '@/core/ai/nebius';
 
@@ -429,14 +427,14 @@ Return ONLY a strict JSON object:
 
     const addressedIndices: number[] =
       !isFluff && !isSubtleNonCommitment && !isQuestionInput && Array.isArray(parsed1.addressedBlockerIndices)
-        ? parsed1.addressedBlockerIndices.filter((idx: any) => typeof idx === 'number')
+        ? parsed1.addressedBlockerIndices.filter((idx: unknown): idx is number => typeof idx === 'number')
         : [];
 
     // Free text price extraction (ignore questions)
     const freeTextPrice = !isQuestionInput
       ? extractPriceFromFreeText(counterOffer, currentPrice, input.proposedPrice)
       : null;
-    let extractedPrice =
+    const extractedPrice =
       freeTextPrice !== null
         ? freeTextPrice
         : !isQuestionInput && typeof parsed1.extractedPrice === 'number' && parsed1.extractedPrice >= 0
@@ -518,13 +516,13 @@ Return ONLY a strict JSON object:
     let updatedVote: PersonaVote = evaluation.vote;
     let voteFlipped = false;
     let pushedBack = false;
-    let concessionQuality: 'fluff' | 'partial' | 'concrete_resolution' = 'fluff';
+    let concessionQuality: 'fluff' | 'partial' | 'concrete_resolution' | undefined = 'fluff';
 
     if (isQuestionInput) {
       // Inquiries preserve previous vote & stance without grading as a rejected proposal
       updatedVote = evaluation.vote;
       pushedBack = false;
-      concessionQuality = undefined as any;
+      concessionQuality = undefined;
       voteFlipped = false;
     } else if (netGain <= 0) {
       updatedVote = 'reject';
@@ -881,6 +879,9 @@ function getFallbackSparringResponse(request: SparringRequest): SparringResponse
         isPerformanceBlocker &&
         (lower.includes('written p99') ||
           lower.includes('latency sla') ||
+          lower.includes('uptime') ||
+          lower.includes('sla') ||
+          lower.includes('service credit') ||
           lower.includes('proof-of-concept') ||
           lower.includes('30-day proof') ||
           lower.includes('14-day trial') ||

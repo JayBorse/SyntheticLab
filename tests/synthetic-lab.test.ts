@@ -24,9 +24,6 @@ import {
 import { generateCompetitiveBattlecard, PRESET_BATTLECARDS } from '../src/core/synthetic-lab/battlecard-generator';
 import {
   evaluateNegotiationTurn,
-  initializeBlockerChecklist,
-  isObviousFluff,
-  calculateNetValueDelta,
 } from '../src/core/synthetic-lab/negotiation-engine';
 import { normalizeUrl, extractProductFromUrl } from '../src/core/synthetic-lab/url-extractor';
 import {
